@@ -140,6 +140,23 @@ describe("atlasNight style", () => {
     expect(withTerrain.sources["atlas-dem"]).toBeDefined();
   });
 
+  it("compares boolean tile fields to booleans, not strings", () => {
+    // `maritime` is a Boolean in mapbox-streets-v8. Comparing it to the string
+    // "false" is a well-formed expression that is never true, so it silently
+    // suppresses every admin boundary — invisible to the style validator.
+    const admin = build().layers.filter((layer) => layer.id.startsWith("admin-"));
+    expect(admin.length).toBeGreaterThan(0);
+
+    for (const layer of admin) {
+      const filter = JSON.stringify(
+        (layer as unknown as { filter?: unknown }).filter ?? [],
+      );
+      expect(filter, `${layer.id} compares maritime to a string`).not.toContain(
+        '"maritime"],"false"',
+      );
+    }
+  });
+
   it("returns a fresh object each call", () => {
     // Mapbox mutates the style it is handed; sharing one instance between
     // maps causes subtle, miserable bugs.

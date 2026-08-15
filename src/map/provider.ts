@@ -15,12 +15,25 @@ import type {
  */
 export type MapProviderMaturity = "production" | "development-placeholder";
 
-/** Why a map could not be mounted. Drives honest UI, not a console warning. */
+/**
+ * Why a map could not be mounted. Drives honest UI, not a console warning.
+ *
+ * `no-token` and `unauthorized` are deliberately distinct. Collapsing them —
+ * as an earlier version did — tells a user whose token IS configured to go
+ * configure their token, which sends them to fix the one thing that is not
+ * broken. A rejected token is almost always a URL restriction that does not
+ * list the deployment hostname, and the UI has to be able to say so.
+ */
 export type MapUnavailableReason =
+  /** No token present in the build at all. */
   | "no-token"
+  /** Token present but rejected by Mapbox (401/403) — usually a URL restriction. */
+  | "unauthorized"
   | "webgl-unsupported"
   | "load-failed"
-  | "network";
+  | "network"
+  /** The style never finished loading within the watchdog window. */
+  | "timeout";
 
 export class MapUnavailableError extends Error {
   constructor(

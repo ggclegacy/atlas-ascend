@@ -382,7 +382,11 @@ export function atlasNightStyle(options: AtlasNightOptions): StyleSpecification 
       type: "line",
       source: V8,
       "source-layer": "admin",
-      filter: ["all", ["==", ["get", "admin_level"], 1], ["==", ["get", "maritime"], "false"]],
+      // `maritime` is a Boolean in mapbox-streets-v8, not a string. Comparing
+      // it to "false" is never true, which silently suppressed every state
+      // boundary — a bug the style-spec validator cannot catch, because the
+      // expression is perfectly well-formed.
+      filter: ["all", ["==", ["get", "admin_level"], 1], ["==", ["get", "maritime"], false]],
       paint: {
         "line-color": ADMIN,
         "line-width": widthByZoom([
@@ -399,7 +403,7 @@ export function atlasNightStyle(options: AtlasNightOptions): StyleSpecification 
       type: "line",
       source: V8,
       "source-layer": "admin",
-      filter: ["all", ["==", ["get", "admin_level"], 0], ["==", ["get", "maritime"], "false"]],
+      filter: ["all", ["==", ["get", "admin_level"], 0], ["==", ["get", "maritime"], false]],
       paint: {
         "line-color": ADMIN,
         "line-width": widthByZoom([

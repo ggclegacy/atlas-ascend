@@ -17,7 +17,28 @@ import type {
 } from "../types";
 import { pitchFor } from "../types";
 import { atlasNightStyle } from "./atlas-night";
+import {
+  describeContainer,
+  describeToken,
+  detectWebGL,
+  hasNonZeroSize,
+  stage,
+  stageFailed,
+  warn,
+} from "./diagnostics";
 import { createDestinationElement, createUserPuckElement } from "./markers";
+
+/**
+ * How long to wait for the style to finish loading before declaring failure.
+ *
+ * Without this the map can sit forever behind its loading veil when a source
+ * request hangs — which is precisely the "blank dark rectangle" failure this
+ * watchdog exists to convert into an honest error state.
+ */
+const STYLE_LOAD_TIMEOUT_MS = 15_000;
+
+/** How long to wait for a zero-size container to receive layout. */
+const CONTAINER_LAYOUT_TIMEOUT_MS = 2_000;
 
 /**
  * Production map provider, backed by Mapbox GL JS v3.
@@ -30,8 +51,17 @@ export class MapboxMapProvider implements MapProvider {
   readonly maturity: MapProviderMaturity = "production";
 
   checkAvailability(): MapUnavailableReason | null {
-    if (getMapboxToken() === null) return "no-token";
-    if (!supportsWebGL()) return "webgl-unsupported";
+    const token = getMapboxToken();
+    stage("availability", `token ${describeToken(token)}`);
+    if (token === null) return "no-token";
+
+    const webgl = detectWebGL();
+    if (!webgl.supported) {
+      stageFailed("webgl", webgl.detail);
+      return "webgl-unsupported";
+    }
+    stage("webgl", webgl.detail);
+
     return null;
   }
 
@@ -44,16 +74,42 @@ export class MapboxMapProvider implements MapProvider {
       throw new MapUnavailableError(blocked, describeReason(blocked));
     }
 
+    // A Mapbox map constructed into a zero-size container renders nothing and
+    // never recovers on its own. Wait for real layout before constructing.
+    if (!hasNonZeroSize(container)) {
+      warn(`container has no size (${describeContainer(container)}); waiting for layout`);
+      await waitForLayout(container, CONTAINER_LAYOUT_TIMEOUT_MS);
+    }
+    if (!hasNonZeroSize(container)) {
+      // Proceed anyway — a ResizeObserver below will resize once layout
+      // arrives — but record it, because it is a strong suspect if the map
+      // ends up blank.
+      stageFailed("container", `still zero-size after ${CONTAINER_LAYOUT_TIMEOUT_MS}ms`);
+    } else {
+      stage("container", describeContainer(container));
+    }
+
     // Dynamic import keeps ~800KB of map SDK out of the initial bundle. The
     // Command Center shell renders and becomes interactive before this lands.
     //
     // The stylesheet is loaded here too rather than statically at the top of
     // the map component: a static import would put ~40KB of Mapbox CSS in the
     // render-blocking payload for a surface that has not mounted yet.
-    const [mapboxModule] = await Promise.all([
-      import("mapbox-gl"),
-      import("mapbox-gl/dist/mapbox-gl.css"),
-    ]);
+    // Verified to resolve through Turbopack's CSS chunk loader in a production
+    // build — see `tests/map-runtime.test.ts`.
+    let mapboxModule: typeof import("mapbox-gl");
+    try {
+      const [sdk] = await Promise.all([
+        import("mapbox-gl"),
+        import("mapbox-gl/dist/mapbox-gl.css").then(() => stage("css-import")),
+      ]);
+      mapboxModule = sdk;
+      stage("sdk-import", `mapbox-gl loaded`);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "dynamic import failed";
+      stageFailed("sdk-import", detail);
+      throw new MapUnavailableError("network", detail);
+    }
 
     const mapboxgl = mapboxModule.default;
     mapboxgl.accessToken = getMapboxToken() as string;
@@ -86,17 +142,64 @@ export class MapboxMapProvider implements MapProvider {
       antialias: capability.antialias,
     });
 
-    return new MapboxHandle(map, mapboxgl, initial);
+    stage(
+      "constructor",
+      `3D=${capability.buildings3D} terrain=${capability.terrain} aa=${capability.antialias}`,
+    );
+
+    return new MapboxHandle(map, mapboxgl, initial, container);
   }
+}
+
+/** Resolves once the element has non-zero size, or after `timeout`. */
+function waitForLayout(element: HTMLElement, timeout: number): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof ResizeObserver === "undefined") {
+      setTimeout(resolve, 100);
+      return;
+    }
+
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      observer.disconnect();
+      clearTimeout(timer);
+      resolve();
+    };
+
+    const observer = new ResizeObserver(() => {
+      if (hasNonZeroSize(element)) finish();
+    });
+    observer.observe(element);
+
+    const timer = setTimeout(finish, timeout);
+  });
 }
 
 // ---------------------------------------------------------------------------
 
-class MapboxHandle implements MapHandle {
+/** Exported for tests; not part of the public map surface. */
+export class MapboxHandle implements MapHandle {
   private userMarker: Marker | null = null;
   private destinationMarker: Marker | null = null;
   private puckElement: HTMLElement | null = null;
   private destroyed = false;
+
+  /**
+   * Replay state.
+   *
+   * The consumer subscribes *after* `mount()` resolves, so any event the map
+   * emits in the interim would otherwise be dropped and never reproduced —
+   * leaving the UI stuck on its loading veil forever. Recording whether the
+   * map became ready, and the first fatal error, makes subscription order
+   * irrelevant.
+   */
+  private isReady = false;
+  private fatalError: MapUnavailableError | null = null;
+
+  private watchdog: ReturnType<typeof setTimeout> | null = null;
+  private resizeObserver: ResizeObserver | null = null;
 
   private readonly listeners: {
     [K in keyof MapEvents]: Set<MapEvents[K]>;
@@ -111,10 +214,38 @@ class MapboxHandle implements MapHandle {
     private readonly map: MapboxMap,
     private readonly mapboxgl: typeof import("mapbox-gl").default,
     private config: MapConfiguration,
+    container: HTMLElement,
   ) {
+    map.on("style.load", () => stage("style-load"));
+
     map.on("load", () => {
+      this.isReady = true;
+      this.clearWatchdog();
+      stage("map-load", `canvas ${describeContainer(container)}`);
       this.emit("ready");
     });
+
+    // Converts an indefinite hang into an honest failure. Without it, a source
+    // request that never resolves leaves the UI dark with nothing to report.
+    this.watchdog = setTimeout(() => {
+      if (this.isReady || this.destroyed) return;
+      const error = new MapUnavailableError(
+        "timeout",
+        `Style did not finish loading within ${STYLE_LOAD_TIMEOUT_MS / 1000}s`,
+      );
+      stageFailed("map-load", error.message);
+      this.fail(error);
+    }, STYLE_LOAD_TIMEOUT_MS);
+
+    // Keep the canvas matched to its container. Covers late layout, orientation
+    // change, and mobile browser chrome collapsing — all of which otherwise
+    // leave the canvas sized to a stale rect.
+    if (typeof ResizeObserver !== "undefined") {
+      this.resizeObserver = new ResizeObserver(() => {
+        if (!this.destroyed) this.map.resize();
+      });
+      this.resizeObserver.observe(container);
+    }
 
     // `dragstart`/`rotatestart` fire only for genuine user gestures, not for
     // programmatic camera moves — which is exactly the distinction needed to
@@ -135,14 +266,50 @@ class MapboxHandle implements MapHandle {
     });
 
     map.on("error", (event) => {
-      // Mapbox surfaces tile 401/403s here; a bad token is the common cause
-      // and deserves a real UI state rather than a silent grey canvas.
-      const message = event.error?.message ?? "Map failed to load";
-      const reason: MapUnavailableReason = /401|403|token|unauthor/i.test(message)
-        ? "no-token"
-        : "load-failed";
-      this.emit("error", new MapUnavailableError(reason, message));
+      // Mapbox wraps failed requests in an AJAXError carrying the real HTTP
+      // status. Classifying on `status` rather than pattern-matching the
+      // message is what makes "token rejected" reliably distinguishable from
+      // "network died" — the previous regex approach silently mislabeled a
+      // 401 from a URL-restricted token as "no token configured".
+      const raw = event.error as
+        | (Error & { status?: number; url?: string })
+        | undefined;
+
+      const status = typeof raw?.status === "number" ? raw.status : null;
+      const message = raw?.message ?? "Map failed to load";
+      const reason = classifyError(status, message);
+
+      // The request URL identifies which resource failed (tiles vs glyphs vs
+      // TileJSON). Strip the query string — it carries the access token.
+      const resource = raw?.url ? stripQuery(raw.url) : "unknown resource";
+      stageFailed(
+        "source-error",
+        `${status ?? "no status"} ${message} — ${resource}`,
+      );
+
+      // Only auth/network failures are fatal to the whole surface. A single
+      // failed glyph range should not blank a map that is otherwise fine.
+      if (reason === "unauthorized" || reason === "network") {
+        this.fail(new MapUnavailableError(reason, message));
+      } else if (!this.isReady) {
+        this.fail(new MapUnavailableError(reason, message));
+      }
     });
+  }
+
+  /** Records and emits a fatal error, so late subscribers still receive it. */
+  private fail(error: MapUnavailableError): void {
+    if (this.fatalError !== null) return; // Report the first cause, not the cascade.
+    this.fatalError = error;
+    this.clearWatchdog();
+    this.emit("error", error);
+  }
+
+  private clearWatchdog(): void {
+    if (this.watchdog !== null) {
+      clearTimeout(this.watchdog);
+      this.watchdog = null;
+    }
   }
 
   setCamera(camera: Partial<MapCamera>, transition: CameraTransition): void {
@@ -242,6 +409,17 @@ class MapboxHandle implements MapHandle {
 
   on<K extends keyof MapEvents>(event: K, handler: MapEvents[K]): () => void {
     this.listeners[event].add(handler);
+
+    // Replay terminal state to late subscribers. Subscription happens after
+    // `mount()` resolves, so without this a map that became ready — or failed —
+    // during that window would never inform the UI, stranding it on its
+    // loading veil indefinitely.
+    if (event === "ready" && this.isReady) {
+      (handler as MapEvents["ready"])();
+    } else if (event === "error" && this.fatalError !== null) {
+      (handler as MapEvents["error"])(this.fatalError);
+    }
+
     return () => {
       this.listeners[event].delete(handler);
     };
@@ -250,9 +428,13 @@ class MapboxHandle implements MapHandle {
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
+    this.clearWatchdog();
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
     this.userMarker?.remove();
     this.destinationMarker?.remove();
     this.map.remove();
+    stage("destroy");
   }
 
   private emit<K extends keyof MapEvents>(
@@ -306,16 +488,37 @@ function detectCapability(): Capability {
   };
 }
 
-function supportsWebGL(): boolean {
-  if (typeof document === "undefined") return false;
-  try {
-    const canvas = document.createElement("canvas");
-    return Boolean(
-      canvas.getContext("webgl2") ?? canvas.getContext("webgl"),
-    );
-  } catch {
-    return false;
+/**
+ * Maps an HTTP status (and message, when no status is available) onto an Atlas
+ * failure reason.
+ *
+ * Exported for testing — this classification is the difference between telling
+ * a user to configure a token they already configured and telling them their
+ * token does not allow their deployment hostname.
+ */
+export function classifyError(
+  status: number | null,
+  message: string,
+): MapUnavailableReason {
+  if (status === 401 || status === 403) return "unauthorized";
+  if (status === 404) return "load-failed";
+  if (status !== null && status >= 500) return "network";
+
+  // No status: fall back to the message, but keep auth detection strict so a
+  // stray "unauthorized" in unrelated prose cannot mislabel a network fault.
+  if (/\b(401|403)\b|unauthorized|forbidden|invalid.*token|token.*invalid/i.test(message)) {
+    return "unauthorized";
   }
+  if (/failed to fetch|networkerror|load failed|err_internet/i.test(message)) {
+    return "network";
+  }
+  return "load-failed";
+}
+
+/** Removes the query string, which carries the access token. */
+function stripQuery(url: string): string {
+  const index = url.indexOf("?");
+  return index === -1 ? url : url.slice(0, index);
 }
 
 /** Matches the design system's `--ease-atlas-cinematic`. */
@@ -352,12 +555,16 @@ function cubicBezier(
 export function describeReason(reason: MapUnavailableReason): string {
   switch (reason) {
     case "no-token":
-      return "Mapbox access token not configured";
+      return "Map service not configured";
+    case "unauthorized":
+      return "Map service rejected this site";
     case "webgl-unsupported":
-      return "This browser does not support WebGL";
+      return "Browser graphics unsupported";
     case "load-failed":
-      return "The map failed to load";
+      return "Map failed to load";
     case "network":
-      return "Network unavailable";
+      return "Map service unreachable";
+    case "timeout":
+      return "Map failed to load";
   }
 }

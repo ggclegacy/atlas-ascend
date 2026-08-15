@@ -30,8 +30,10 @@ export function MapSurface({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const handleRef = useRef<MapHandle | null>(null);
+  const startedRef = useRef(false);
   const [status, setStatus] = useState<"mounting" | "ready" | "blocked">("mounting");
   const [reason, setReason] = useState<MapUnavailableReason | null>(null);
+  const [slow, setSlow] = useState(false);
 
   // Mount once. The configuration is passed as the initial camera only —
   // subsequent camera changes go through the imperative handle, because
@@ -40,6 +42,13 @@ export function MapSurface({
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
+
+    // Idempotence guard. React Strict Mode invokes effects twice in
+    // development, and a second `mount()` would construct a second WebGL
+    // context — browsers cap those, so the duplicate can cause the *real*
+    // map to fail to acquire one.
+    if (startedRef.current) return;
+    startedRef.current = true;
 
     let cancelled = false;
     const provider = new MapboxMapProvider();
@@ -84,10 +93,19 @@ export function MapSurface({
       cancelled = true;
       handleRef.current?.destroy();
       handleRef.current = null;
+      startedRef.current = false;
     };
     // Deliberately mount-once. See comment above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // If loading runs long, say so. The map has a hard watchdog behind it, but
+  // six seconds of unexplained darkness is its own small failure.
+  useEffect(() => {
+    if (status !== "mounting") return;
+    const timer = window.setTimeout(() => setSlow(true), 6_000);
+    return () => window.clearTimeout(timer);
+  }, [status]);
 
   // Mobile browser chrome collapsing changes the visual viewport without
   // firing a normal resize in every browser. visualViewport is the reliable
@@ -116,7 +134,7 @@ export function MapSurface({
         <MapBlocked reason={reason} />
       )}
 
-      {status === "mounting" && <MapLoading />}
+      {status === "mounting" && <MapLoading slow={slow} />}
     </div>
   );
 }
@@ -127,7 +145,7 @@ export function MapSurface({
  * Deliberately quiet: an obsidian field with a single sweeping gold hairline.
  * A spinner would be louder and say less.
  */
-function MapLoading() {
+function MapLoading({ slow }: { slow: boolean }) {
   return (
     <div className="pointer-events-none absolute inset-0 bg-obsidian">
       <div
@@ -140,6 +158,12 @@ function MapLoading() {
           style={{ animation: "atlas-sweep 1.6s cubic-bezier(0.32,0.72,0.16,1) infinite" }}
         />
       </div>
+
+      {slow && (
+        <p className="atlas-label absolute inset-x-0 top-[calc(50%+18px)] text-center text-ink-3">
+          Still loading the map…
+        </p>
+      )}
     </div>
   );
 }
@@ -173,20 +197,54 @@ function MapBlocked({ reason }: { reason: MapUnavailableReason }) {
         </Eyebrow>
         <p className="atlas-body text-ink-2">{describeReason(reason)}</p>
         {guidance && <p className="atlas-label text-ink-3">{guidance}</p>}
+
+        {/* For a rejected token, the single most useful fact is the hostname
+            that needs allowing. Printing it removes a guessing step — preview
+            deployments in particular have hostnames nobody predicts. */}
+        {reason === "unauthorized" && <Hostname />}
       </div>
     </div>
   );
 }
 
+/** The current hostname, rendered selectably so it can be copied. */
+function Hostname() {
+  const [host, setHost] = useState<string | null>(null);
+
+  // Read after mount — `location` does not exist during server rendering, and
+  // reading it in render would produce a hydration mismatch.
+  useEffect(() => setHost(window.location.hostname), []);
+
+  if (host === null) return null;
+
+  return (
+    <span className="atlas-selectable atlas-readout-sm rounded-lg border border-white/8 bg-raised px-3 py-1.5 text-gold">
+      {host}
+    </span>
+  );
+}
+
+/**
+ * Recovery guidance.
+ *
+ * Written for whoever is actually looking at the screen — which during setup is
+ * the operator, not an end user. Never a stack trace, always a next action.
+ */
 function guidanceFor(reason: MapUnavailableReason): string | null {
   switch (reason) {
     case "no-token":
       return "Set NEXT_PUBLIC_MAPBOX_TOKEN in your environment and redeploy.";
+    case "unauthorized":
+      // The overwhelmingly common cause of a 401/403 when a token IS present:
+      // the token's URL restrictions do not list this hostname.
+      return "The token is present but Mapbox refused it for this domain. Add this site's hostname to the token's URL restrictions.";
     case "webgl-unsupported":
       return "Atlas Ascend needs WebGL to render the map.";
     case "load-failed":
-      return "Check the network connection and reload.";
+      return "Reload to try again.";
     case "network":
       return "Reconnect to load map tiles.";
+    case "timeout":
+      return "The map service did not respond. Reload to try again.";
   }
 }

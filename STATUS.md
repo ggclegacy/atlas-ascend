@@ -11,9 +11,39 @@ ledger. **Update it in the same commit as the code it describes.**
 | 🔵 **PLACEHOLDER** | Visual/structural only |
 | 🔴 **BLOCKED** | Requires credentials, provider setup, browser capability, or another dependency |
 
-**Phase:** 2 — web application foundation
-**Last updated:** 2026-08-14
+**Phase:** 2 — web application foundation (+ blank-map incident fixes)
+**Last updated:** 2026-08-15
 **Deployable to Vercel:** Yes. Builds clean; runs without any environment variable, with the map in a designed blocked state until a Mapbox token is set.
+
+---
+
+## ⚠️ Open incident: map not visibly rendering in production
+
+**Reported:** deployment succeeds, Command Center shell and search render, the
+map area is blank/dark. `NEXT_PUBLIC_MAPBOX_TOKEN` is set in Vercel.
+
+**Ruled out by direct evidence** (2026-08-15):
+
+| Suspect | Verdict | How it was proven |
+|---|---|---|
+| Token not reaching the client | **Not the cause** | Built with a probe token; found inlined in a client chunk |
+| `atlasNight` style invalid | **Not the cause** | 0 errors from Mapbox's own style-spec validator, all 4 capability configs |
+| Mapbox CSS lost by the dynamic import | **Not the cause** | CSS chunk is emitted and referenced by a Turbopack loader stub present in the page graph |
+| Container sizing | **Not the cause** | `absolute inset-0` inside a `position: relative`, `100dvh` viewport; now additionally guarded |
+
+**Confirmed defects — fixed:** the loading veil was opaque with no timeout, so
+any failure to reach `load` rendered exactly the reported blank rectangle;
+`ready`/`error` emitted before the consumer subscribed were dropped with no
+replay; error classification regex-matched messages and mislabeled a 401 as
+"no token configured"; a `maritime`-vs-string filter silently suppressed all
+admin boundaries.
+
+**Still unverified — requires the live deployment:** whether the underlying
+map failure is a URL-restricted token (401/403), and whether the map now
+visibly renders. **No Mapbox token exists in this environment, so the map has
+still never been observed rendering.** After redeploy, the app will now state
+its own failure reason on screen; `?atlasdebug=map` prints the full
+`[AtlasMap]` stage trace to the console.
 
 ---
 
@@ -26,7 +56,7 @@ ledger. **Update it in the same commit as the code it describes.**
 | Vercel deployment config | 🟢 REAL | Zero-config. `.env.example` documents every variable. |
 | PWA manifest + generated icons | 🟢 REAL | `display: standalone`, `viewport-fit: cover`, `black-translucent` status bar. Icons generated as real PNGs at build time. |
 | Service worker / offline shell | ⬜ Not started | Deliberately deferred — see ARCHITECTURE.md. |
-| Test suite (51 tests) | 🟢 REAL | Vitest. Covers provenance, geometry, Atlas rules, vehicle schema, map style discipline. |
+| Test suite (67 tests) | 🟢 REAL | Vitest. Covers provenance, geometry, Atlas rules, vehicle schema, map style discipline, and map runtime lifecycle. The event-replay tests were mutation-checked — they fail against the pre-fix code. |
 
 ## Map
 
@@ -34,7 +64,9 @@ ledger. **Update it in the same commit as the code it describes.**
 |---|---|---|
 | Atlas-owned map abstraction | 🟢 REAL | `MapProvider` / `MapHandle`. Nothing outside `src/map/mapbox/` imports `mapbox-gl`. |
 | Mapbox GL JS v3 provider | 🟢 REAL | Code-split — the SDK and its CSS load only when the map mounts. |
-| `atlasNight` style | 🟢 REAL | Full style spec authored in-repo (`src/map/mapbox/atlas-night.ts`), not a Studio URL. Obsidian world, seven-step neutral road ladder, violet atmosphere, filtered POIs. Asserted by tests. |
+| `atlasNight` style | 🟢 REAL | Full style spec authored in-repo (`src/map/mapbox/atlas-night.ts`), not a Studio URL. Obsidian world, seven-step neutral road ladder, violet atmosphere, filtered POIs. **Validated against Mapbox's own style-spec validator (0 errors)**, plus design-discipline assertions. |
+| Map failure diagnostics | 🟢 REAL | Nine-stage `[AtlasMap]` trace. Verbose output opt-in per session via `?atlasdebug=map`, so a deployed build is diagnosable without a redeploy. Never logs the token — only presence, length, and key kind. |
+| Map failure states | 🟢 REAL | Distinct honest states for not-configured / rejected-by-service / graphics-unsupported / failed / unreachable / timeout. A rejected token prints the hostname that needs allowing. 15s watchdog guarantees the loading veil always resolves. |
 | 3D buildings | 🟡 FUNCTIONAL, INCOMPLETE | Enabled only on devices with >4 cores and no reduced-motion preference. Not yet validated on a real phone. |
 | Terrain / elevation | ⬜ Not started | Source wired, disabled by default. Most expensive feature here; adds little at city zooms. |
 | Camera transitions | 🟢 REAL | `immediate` / `standard` / `cinematic`, the last using `flyTo` so long moves arc rather than interpolate. |
@@ -109,10 +141,14 @@ unavailability. The ones that are not fully functional:
 
 Stated plainly so nothing here is mistaken for verified:
 
-- The map has never rendered — no Mapbox token in this environment.
+- **The map has never rendered.** No Mapbox token exists in this environment,
+  and this machine has no browser to run WebGL. The 2026-08-15 fixes are
+  verified by typecheck, tests, mutation testing, and production build — **not**
+  by observing a map.
 - Geocoding has never returned a live result.
 - Nothing has been opened on a physical phone.
 - 3D buildings, camera flights, and the puck have not been seen in motion.
+- The deployed Vercel application has not been observed at all.
 
-Build, typecheck, tests, and server responses are verified. Visual and
-device behavior is not.
+Build, typecheck, tests, and server responses are verified. Visual, runtime,
+and device behavior is not.
