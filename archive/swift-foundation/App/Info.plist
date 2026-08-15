@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Atlas Ascend — iOS app property list.
+
+  Permission strings are written now, deliberately. Every one of these is
+  user-facing copy that has to match the product's tone, and vague permission
+  prompts are one of the fastest ways to lose the trust a premium product
+  depends on. Each explains what Atlas Ascend does with the data and why.
+
+  NOT YET WIRED: none of these permissions are requested by code yet. Adding
+  the string here does not trigger a prompt; the corresponding service must ask.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDisplayName</key>
+	<string>Atlas Ascend</string>
+	<key>CFBundleName</key>
+	<string>Atlas Ascend</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+
+	<!-- Atlas Ascend is a dark-first product. The light appearance is not a
+	     supported design and must not be produced by accident. -->
+	<key>UIUserInterfaceStyle</key>
+	<string>Dark</string>
+
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIColorName</key>
+		<string>LaunchBackground</string>
+	</dict>
+
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+
+	<!-- Location -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Atlas Ascend uses your location to show where you are on the map, calculate routes, and give you accurate arrival times.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Atlas Ascend uses your location in the background to record trip distance and driving time automatically, so your mileage and vehicle history stay accurate without manual entry.</string>
+
+	<!-- Motion: used to detect drive start/end so trips are logged without the
+	     user remembering to start them. -->
+	<key>NSMotionUsageDescription</key>
+	<string>Atlas Ascend uses motion data to detect when a drive begins and ends, so your trips are recorded automatically.</string>
+
+	<!-- Documents and receipts -->
+	<key>NSCameraUsageDescription</key>
+	<string>Atlas Ascend uses the camera to capture service receipts and vehicle documents so they can be attached to your maintenance history.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Atlas Ascend accesses your photo library so you can attach vehicle photos and existing service receipts to your records.</string>
+
+	<!-- Atlas voice -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Atlas Ascend uses the microphone so you can speak to Atlas and set destinations without taking your hands off the wheel.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Atlas Ascend uses speech recognition to understand spoken destinations and requests you make to Atlas.</string>
+
+	<!-- Background execution: location for trip recording, audio for spoken
+	     turn-by-turn guidance while the app is not foregrounded. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>audio</string>
+	</array>
+</dict>
+</plist>
