@@ -1,40 +1,35 @@
 /**
- * Environment access.
+ * Environment access — the single point at which Atlas Ascend reads config.
  *
- * `NEXT_PUBLIC_*` values are inlined at build time, so they must be referenced
- * as complete literal property accesses — `process.env[name]` does not work.
- * That is why these are individual functions rather than a generic lookup.
+ * Atlas Ascend requires exactly **one** environment variable:
+ * `NEXT_PUBLIC_MAPBOX_TOKEN`.
  *
- * No secret belongs in a `NEXT_PUBLIC_` variable. The Mapbox token below is
- * public by design (it ships to the browser and is restricted by URL in the
- * Mapbox dashboard). Anything genuinely secret — model API keys, database
- * credentials — must stay server-only and never gain the prefix.
+ * Two rules govern this file:
+ *
+ * 1. **The access must be statically analyzable.** Next.js replaces
+ *    `process.env.NEXT_PUBLIC_MAPBOX_TOKEN` with a literal at build time by
+ *    pattern-matching the complete member expression. A dynamic lookup like
+ *    `process.env[name]` is not substituted and silently yields `undefined` in
+ *    the browser — which presents as a map that will not initialize. That is
+ *    why this is a named function around a literal access, not a generic getter.
+ *
+ * 2. **The value is public.** `NEXT_PUBLIC_` means "inlined into the browser
+ *    bundle". It is protected by URL restrictions in the Mapbox dashboard, not
+ *    by secrecy. No genuinely secret value may ever take this prefix.
+ *
+ * Because the token is baked in at build time, changing it requires a rebuild —
+ * not merely a restart or a redeploy of the same artifact.
  */
 
 /**
- * Mapbox public access token (`pk.…`).
+ * The Mapbox public access token (`pk.…`), or `null` when the build had none.
  *
- * Returns `null` when unset, which the map surface renders as an explicit
- * blocked state rather than a broken canvas.
+ * `null` is a first-class outcome, not an error: the app deploys and runs
+ * without a token, showing an explicit "MAP SERVICE NOT CONFIGURED" state
+ * rather than attempting to initialize Mapbox and producing a black canvas.
  */
-export function getMapboxToken(): string | null {
+export function getPublicMapboxToken(): string | null {
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
   if (!token || token.trim().length === 0) return null;
   return token.trim();
-}
-
-/** True when the app was built with a Mapbox token available. */
-export function hasMapboxToken(): boolean {
-  return getMapboxToken() !== null;
-}
-
-/**
- * Whether Atlas intelligence has a configured backend.
- *
- * Server-only: read inside a route handler or server component, never shipped
- * to the browser. Absent means Atlas runs in its explicit simulated mode.
- */
-export function hasAtlasModelKey(): boolean {
-  const key = process.env.ANTHROPIC_API_KEY;
-  return typeof key === "string" && key.trim().length > 0;
 }

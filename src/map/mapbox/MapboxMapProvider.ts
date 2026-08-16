@@ -1,5 +1,5 @@
 import type { Map as MapboxMap, Marker } from "mapbox-gl";
-import { getMapboxToken } from "@/lib/env";
+import { getPublicMapboxToken } from "@/lib/env";
 import {
   type MapEvents,
   type MapHandle,
@@ -54,9 +54,9 @@ export class MapboxMapProvider implements MapProvider {
   readonly maturity: MapProviderMaturity = "production";
 
   checkAvailability(): MapUnavailableReason | null {
-    const token = getMapboxToken();
+    const token = getPublicMapboxToken();
     stage("availability", `token ${describeToken(token)}`);
-    if (token === null) return "no-token";
+    if (token === null) return "missing-token";
 
     const webgl = detectWebGL();
     if (!webgl.supported) {
@@ -95,19 +95,14 @@ export class MapboxMapProvider implements MapProvider {
     // Dynamic import keeps ~800KB of map SDK out of the initial bundle. The
     // Command Center shell renders and becomes interactive before this lands.
     //
-    // The stylesheet is loaded here too rather than statically at the top of
-    // the map component: a static import would put ~40KB of Mapbox CSS in the
-    // render-blocking payload for a surface that has not mounted yet.
-    // Verified to resolve through Turbopack's CSS chunk loader in a production
-    // build — see `tests/map-runtime.test.ts`.
+    // The stylesheet is NOT loaded here. It is imported statically by
+    // `MapSurface`, deliberately — see the note at the top of that file. The
+    // SDK is still split because that is a documented, first-class Next.js
+    // capability; the CSS is not worth the same bet.
     let mapboxModule: typeof import("mapbox-gl");
     try {
-      const [sdk] = await Promise.all([
-        import("mapbox-gl"),
-        import("mapbox-gl/dist/mapbox-gl.css").then(() => stage("css-import")),
-      ]);
-      mapboxModule = sdk;
-      stage("sdk-import", `mapbox-gl loaded`);
+      mapboxModule = await import("mapbox-gl");
+      stage("sdk-import", "mapbox-gl loaded");
     } catch (error) {
       const detail = error instanceof Error ? error.message : "dynamic import failed";
       stageFailed("sdk-import", detail);
@@ -115,7 +110,7 @@ export class MapboxMapProvider implements MapProvider {
     }
 
     const mapboxgl = mapboxModule.default;
-    mapboxgl.accessToken = getMapboxToken() as string;
+    mapboxgl.accessToken = getPublicMapboxToken() as string;
 
     const capability = detectCapability();
 
@@ -280,11 +275,12 @@ export class MapboxHandle implements MapHandle {
 
       const status = typeof raw?.status === "number" ? raw.status : null;
       const message = raw?.message ?? "Map failed to load";
-      const reason = classifyError(status, message);
 
       // The request URL identifies which resource failed (tiles vs glyphs vs
-      // TileJSON). Strip the query string — it carries the access token.
+      // styles) and is what lets a scope problem be told apart from a
+      // restriction problem. Strip the query string — it carries the token.
       const resource = safeResource(raw?.url);
+      const reason = classifyError(status, message, resource);
       stageFailed(
         "source-error",
         `${status ?? "no status"} ${message} — ${resource ?? "unknown resource"}`,
@@ -299,7 +295,7 @@ export class MapboxHandle implements MapHandle {
 
       // Only auth/network failures are fatal to the whole surface. A single
       // failed glyph range should not blank a map that is otherwise fine.
-      if (reason === "unauthorized" || reason === "network") {
+      if (isAuthFailure(reason) || reason === "network") {
         this.fail(new MapUnavailableError(reason, message));
       } else if (!this.isReady) {
         this.fail(new MapUnavailableError(reason, message));
@@ -503,30 +499,57 @@ function detectCapability(): Capability {
 }
 
 /**
- * Maps an HTTP status (and message, when no status is available) onto an Atlas
- * failure reason.
+ * Maps an HTTP status, message, and failing resource onto an Atlas failure
+ * reason.
  *
- * Exported for testing — this classification is the difference between telling
- * a user to configure a token they already configured and telling them their
- * token does not allow their deployment hostname.
+ * The `resource` argument is what makes a scope problem distinguishable from a
+ * restriction problem: a 403 on `/v4/…` means the token cannot read tiles,
+ * while a 403 on the geocoder means something else entirely. Without it, every
+ * auth failure collapses into one unactionable bucket.
+ *
+ * Exported for testing.
  */
 export function classifyError(
   status: number | null,
   message: string,
+  resource?: string | null,
 ): MapUnavailableReason {
-  if (status === 401 || status === 403) return "unauthorized";
-  if (status === 404) return "load-failed";
+  const path = resource ?? "";
+  const isTile = /\/v4\//.test(path) || /\.mvt/.test(path);
+  const isStyle = /\/styles\//.test(path);
+
+  if (status === 401 || status === 403) {
+    // Endpoint-specific auth failures name the missing capability directly.
+    if (isTile) return "tile-access-denied";
+    if (isStyle) return "style-access-denied";
+    return status === 401 ? "invalid-token" : "forbidden";
+  }
+
   if (status !== null && status >= 500) return "network";
+  if (status !== null && status >= 400) return "request-rejected";
 
   // No status: fall back to the message, but keep auth detection strict so a
-  // stray "unauthorized" in unrelated prose cannot mislabel a network fault.
-  if (/\b(401|403)\b|unauthorized|forbidden|invalid.*token|token.*invalid/i.test(message)) {
-    return "unauthorized";
+  // stray "unauthorized" in unrelated prose cannot mislabel a transport fault.
+  if (/\b401\b|unauthorized|invalid.*token|token.*invalid/i.test(message)) {
+    return "invalid-token";
   }
-  if (/failed to fetch|networkerror|load failed|err_internet/i.test(message)) {
+  if (/\b403\b|forbidden|not allowed/i.test(message)) {
+    return "forbidden";
+  }
+  if (/failed to fetch|networkerror|load failed|err_internet|err_network/i.test(message)) {
     return "network";
   }
-  return "load-failed";
+  return "unknown";
+}
+
+/** True when this reason is an authentication or authorization failure. */
+export function isAuthFailure(reason: MapUnavailableReason): boolean {
+  return (
+    reason === "invalid-token" ||
+    reason === "forbidden" ||
+    reason === "tile-access-denied" ||
+    reason === "style-access-denied"
+  );
 }
 
 /**
@@ -621,19 +644,32 @@ function cubicBezier(
   return ((ay * x + by) * x + cy) * x;
 }
 
+/**
+ * User-facing wording. Simplified relative to the internal taxonomy — the
+ * person looking at the screen needs a category, not a status code. The precise
+ * reason is preserved in diagnostics.
+ */
 export function describeReason(reason: MapUnavailableReason): string {
   switch (reason) {
-    case "no-token":
+    case "missing-token":
       return "Map service not configured";
-    case "unauthorized":
+    case "invalid-token":
+      return "Map service rejected this key";
+    case "forbidden":
       return "Map service rejected this site";
-    case "webgl-unsupported":
-      return "Browser graphics unsupported";
-    case "load-failed":
-      return "Map failed to load";
+    case "tile-access-denied":
+      return "Map tile access denied";
+    case "style-access-denied":
+      return "Map style access denied";
+    case "request-rejected":
+      return "Map request rejected";
     case "network":
       return "Map service unreachable";
     case "timeout":
+      return "Map failed to load";
+    case "webgl-unsupported":
+      return "Browser graphics unsupported";
+    case "unknown":
       return "Map failed to load";
   }
 }

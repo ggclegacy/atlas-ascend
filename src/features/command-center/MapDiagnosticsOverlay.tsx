@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getMapboxToken } from "@/lib/env";
+import { getPublicMapboxToken } from "@/lib/env";
 import {
   describeToken,
   detectWebGL,
@@ -48,7 +48,7 @@ export function MapDiagnosticsOverlay({
 
   if (hidden) return null;
 
-  const token = getMapboxToken();
+  const token = getPublicMapboxToken();
   const webgl = detectWebGL();
   const lastError = getLastError();
   const trace = getTrace();
@@ -96,11 +96,11 @@ export function MapDiagnosticsOverlay({
           value={yesNo(reached("sdk-import")).text}
           verdict={yesNo(reached("sdk-import")).verdict}
         />
-        <Row
-          label="css imported"
-          value={yesNo(reached("css-import")).text}
-          verdict={yesNo(reached("css-import")).verdict}
-        />
+        {/* Mapbox CSS is a static import in MapSurface, so it is part of the
+            route's stylesheet and cannot be absent at runtime. Reported as a
+            constant rather than a probe, because a probe here would always
+            read "no" and look like a fault. */}
+        <Row label="mapbox css" value="static (bundled)" verdict="ok" />
         <Row
           label="constructor"
           value={yesNo(reached("constructor")).text}

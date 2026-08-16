@@ -143,6 +143,41 @@ export function bearingDegrees(a: Coordinate, b: Coordinate): number {
   return (((Math.atan2(y, x) * 180) / Math.PI) + 360) % 360;
 }
 
+/**
+ * The neutral default camera.
+ *
+ * Used on first load, before — and regardless of whether — location permission
+ * is granted. Map rendering must never depend on geolocation: a user who denies
+ * location still gets a real, useful map, and the camera only moves once a
+ * genuine fix arrives.
+ *
+ * Austin is a deliberate choice: densely mapped, unambiguous at this zoom, and
+ * obviously not a claim about where the user is.
+ */
+export const DEFAULT_CAMERA: MapCamera = {
+  center: { latitude: 30.2672, longitude: -97.7431 },
+  zoom: 15.5,
+  pitch: 62,
+  bearing: 0,
+};
+
+/** True when a camera is renderable — finite, in range, and not degenerate. */
+export function isValidCamera(camera: MapCamera): boolean {
+  return (
+    isValidCoordinate(camera.center) &&
+    Number.isFinite(camera.zoom) &&
+    camera.zoom >= 0 &&
+    camera.zoom <= 22 &&
+    Number.isFinite(camera.pitch) &&
+    camera.pitch >= 0 &&
+    // Mapbox GL JS caps pitch at 85; this app caps it lower still.
+    camera.pitch <= 85 &&
+    Number.isFinite(camera.bearing) &&
+    camera.bearing >= -360 &&
+    camera.bearing <= 360
+  );
+}
+
 export function isValidCoordinate(c: Coordinate): boolean {
   return (
     Number.isFinite(c.latitude) &&

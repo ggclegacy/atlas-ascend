@@ -73,41 +73,65 @@ describe("atlasNight is a valid Mapbox style", () => {
 // ---------------------------------------------------------------------------
 
 describe("map error classification", () => {
-  it("reports 401 and 403 as unauthorized, never as a missing token", () => {
-    // The regression: a URL-restricted token 401s, and the old regex reported
-    // "no-token", telling the user to configure the one thing already correct.
-    expect(classifyError(401, "Unauthorized")).toBe("unauthorized");
-    expect(classifyError(403, "Forbidden")).toBe("unauthorized");
-    expect(classifyError(401, "Unauthorized")).not.toBe("no-token");
+  it("never reports an auth failure as a missing token", () => {
+    // The original regression: a rejected token was classified "no token",
+    // sending the user to configure the one thing that was already correct.
+    for (const status of [401, 403]) {
+      expect(classifyError(status, "Unauthorized")).not.toBe("missing-token");
+    }
   });
 
-  it("distinguishes 404 and server errors", () => {
-    expect(classifyError(404, "Not Found")).toBe("load-failed");
+  it("separates an invalid key from a forbidden origin", () => {
+    // 401 means the credential itself was refused; 403 means it was accepted
+    // but not permitted here — typically a URL restriction. Different fixes.
+    expect(classifyError(401, "Unauthorized")).toBe("invalid-token");
+    expect(classifyError(403, "Forbidden")).toBe("forbidden");
+  });
+
+  it("names the missing capability when a tile or style request is refused", () => {
+    // This is what turns "check your Mapbox settings" into a specific action.
+    expect(
+      classifyError(403, "Forbidden", "api.mapbox.com/v4/mapbox.mapbox-streets-v8.json"),
+    ).toBe("tile-access-denied");
+    expect(
+      classifyError(401, "Unauthorized", "api.mapbox.com/v4/mapbox.mapbox-streets-v8/12/935/1686.mvt"),
+    ).toBe("tile-access-denied");
+    expect(
+      classifyError(403, "Forbidden", "api.mapbox.com/styles/v1/mapbox/dark-v11"),
+    ).toBe("style-access-denied");
+  });
+
+  it("distinguishes client rejections from server and transport failures", () => {
+    expect(classifyError(404, "Not Found")).toBe("request-rejected");
+    expect(classifyError(429, "Too Many Requests")).toBe("request-rejected");
     expect(classifyError(500, "Internal Server Error")).toBe("network");
     expect(classifyError(503, "Service Unavailable")).toBe("network");
   });
 
   it("falls back to the message when no status is available", () => {
     expect(classifyError(null, "Failed to fetch")).toBe("network");
-    expect(classifyError(null, "invalid token supplied")).toBe("unauthorized");
-    expect(classifyError(null, "something odd happened")).toBe("load-failed");
+    expect(classifyError(null, "invalid token supplied")).toBe("invalid-token");
+    expect(classifyError(null, "Forbidden")).toBe("forbidden");
+    expect(classifyError(null, "something odd happened")).toBe("unknown");
   });
 
   it("does not mistake unrelated prose for an auth failure", () => {
     // Guards against the old over-eager pattern matching.
-    expect(classifyError(null, "sprite image could not be decoded")).toBe(
-      "load-failed",
-    );
+    expect(classifyError(null, "sprite image could not be decoded")).toBe("unknown");
   });
 
   it("gives every reason a distinct, non-empty, trace-free description", () => {
     const reasons: MapUnavailableReason[] = [
-      "no-token",
-      "unauthorized",
-      "webgl-unsupported",
-      "load-failed",
+      "missing-token",
+      "invalid-token",
+      "forbidden",
+      "tile-access-denied",
+      "style-access-denied",
+      "request-rejected",
       "network",
       "timeout",
+      "webgl-unsupported",
+      "unknown",
     ];
     const described = reasons.map(describeReason);
 
@@ -116,8 +140,32 @@ describe("map error classification", () => {
       // User-facing copy must never leak internals.
       expect(text).not.toMatch(/error:|stack|undefined|null|at </i);
     }
-    // "no-token" and "unauthorized" must not read identically.
-    expect(describeReason("no-token")).not.toBe(describeReason("unauthorized"));
+    // User-facing wording is deliberately allowed to collapse (timeout and
+    // unknown both read "Map failed to load") — the precise reason survives in
+    // diagnostics. What must NEVER collapse is "not configured" against any
+    // auth failure: that specific conflation is what sent the user to fix a
+    // token that was already correct.
+    const notConfigured = describeReason("missing-token");
+    for (const authReason of [
+      "invalid-token",
+      "forbidden",
+      "tile-access-denied",
+      "style-access-denied",
+    ] as const) {
+      expect(
+        describeReason(authReason),
+        `${authReason} must not read as "not configured"`,
+      ).not.toBe(notConfigured);
+    }
+
+    // And each auth failure must name a different remedy.
+    const authTexts = [
+      describeReason("invalid-token"),
+      describeReason("forbidden"),
+      describeReason("tile-access-denied"),
+      describeReason("style-access-denied"),
+    ];
+    expect(new Set(authTexts).size).toBe(authTexts.length);
   });
 });
 
@@ -231,7 +279,7 @@ describe("MapboxHandle event replay", () => {
 
     expect(onError).toHaveBeenCalledTimes(1);
     expect((onError.mock.calls[0]?.[0] as MapUnavailableError).reason).toBe(
-      "unauthorized",
+      "invalid-token",
     );
     handle.destroy();
   });

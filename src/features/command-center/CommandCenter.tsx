@@ -30,6 +30,7 @@ import {
 } from "@/location/useGeolocation";
 import type { MapHandle } from "@/map/provider";
 import {
+  DEFAULT_CAMERA,
   type MapConfiguration,
   type MapPerspective,
   PERSPECTIVES,
@@ -68,15 +69,6 @@ import { MapSurface } from "./MapSurface";
  * Atlas prompt at thumb height along the bottom.
  */
 
-/** Austin, TX. Used only until a real fix arrives — never presented as the
- *  user's location, and the puck stays hidden until location is genuinely known. */
-const INITIAL_CAMERA = {
-  center: { latitude: 30.2672, longitude: -97.7431 },
-  zoom: 15.5,
-  pitch: pitchFor("driving"),
-  bearing: 0,
-};
-
 export function CommandCenter() {
   const router = useRouter();
   const location = useGeolocation();
@@ -97,7 +89,7 @@ export function CommandCenter() {
 
   const configuration: MapConfiguration = useMemo(
     () => ({
-      camera: INITIAL_CAMERA,
+      camera: DEFAULT_CAMERA,
       style: "atlasNight",
       perspective: "driving",
       annotations: [],

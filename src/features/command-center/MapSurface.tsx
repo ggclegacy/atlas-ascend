@@ -1,5 +1,19 @@
 "use client";
 
+/**
+ * Mapbox GL's stylesheet is imported statically, at the top of the one client
+ * component that owns the map.
+ *
+ * An earlier version loaded it via a dynamic `import()` alongside the SDK to
+ * keep ~40KB out of the initial payload. That mechanism was verified to work —
+ * Turbopack emits a CSS chunk and a loader stub — but it depends on bundler
+ * internals that are not part of any public contract, and this project has
+ * already lost several passes to ambiguity about whether the deployed build
+ * matched intent. Determinism outranks 40KB: a static import is the documented,
+ * boring path that every Next.js version handles identically.
+ */
+import "mapbox-gl/dist/mapbox-gl.css";
+
 import { useEffect, useRef, useState } from "react";
 import { MapboxMapProvider, describeReason } from "@/map/mapbox/MapboxMapProvider";
 import {
@@ -95,7 +109,7 @@ export function MapSurface({
         if (cancelled) return;
         setStatus("blocked");
         setReason(
-          error instanceof MapUnavailableError ? error.reason : "load-failed",
+          error instanceof MapUnavailableError ? error.reason : "unknown",
         );
       });
 
@@ -220,7 +234,7 @@ function MapBlocked({ reason }: { reason: MapUnavailableReason }) {
         {/* For a rejected token, the single most useful fact is the hostname
             that needs allowing. Printing it removes a guessing step — preview
             deployments in particular have hostnames nobody predicts. */}
-        {reason === "unauthorized" && <Hostname />}
+        {SHOWS_HOSTNAME.has(reason) && <Hostname />}
       </div>
     </div>
   );
@@ -249,21 +263,36 @@ function Hostname() {
  * Written for whoever is actually looking at the screen — which during setup is
  * the operator, not an end user. Never a stack trace, always a next action.
  */
+/**
+ * Failures where naming the current hostname is the useful next step —
+ * i.e. anything that could be a URL restriction on the token.
+ */
+const SHOWS_HOSTNAME: ReadonlySet<MapUnavailableReason> = new Set([
+  "forbidden",
+  "invalid-token",
+]);
+
 function guidanceFor(reason: MapUnavailableReason): string | null {
   switch (reason) {
-    case "no-token":
-      return "Set NEXT_PUBLIC_MAPBOX_TOKEN in your environment and redeploy.";
-    case "unauthorized":
-      // The overwhelmingly common cause of a 401/403 when a token IS present:
-      // the token's URL restrictions do not list this hostname.
-      return "The token is present but Mapbox refused it for this domain. Add this site's hostname to the token's URL restrictions.";
+    case "missing-token":
+      return "Set NEXT_PUBLIC_MAPBOX_TOKEN in your environment and redeploy. It is read at build time, not at runtime.";
+    case "invalid-token":
+      return "Mapbox rejected this key. Check it is a public pk. token, and that it has not been revoked or restricted away from this domain.";
+    case "forbidden":
+      return "The key is valid but not permitted here. Add this site's hostname to the token's URL restrictions.";
+    case "tile-access-denied":
+      return "This token cannot read map tiles. Add the styles:tiles capability to it in the Mapbox dashboard.";
+    case "style-access-denied":
+      return "This token cannot read map styles. Add the styles:read capability to it in the Mapbox dashboard.";
+    case "request-rejected":
+      return "Mapbox refused the request. Reload to try again.";
     case "webgl-unsupported":
       return "Atlas Ascend needs WebGL to render the map.";
-    case "load-failed":
-      return "Reload to try again.";
     case "network":
       return "Reconnect to load map tiles.";
     case "timeout":
       return "The map service did not respond. Reload to try again.";
+    case "unknown":
+      return "Reload to try again.";
   }
 }

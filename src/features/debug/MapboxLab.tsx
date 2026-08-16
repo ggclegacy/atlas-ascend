@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { getMapboxToken } from "@/lib/env";
+import { getPublicMapboxToken } from "@/lib/env";
 import { atlasNightStyle } from "@/map/mapbox/atlas-night";
 import {
   describeToken,
@@ -81,7 +81,7 @@ export function MapboxLab() {
     setRunning(true);
     setResults([]);
 
-    const token = getMapboxToken();
+    const token = getPublicMapboxToken();
     if (token === null) {
       setResults([
         {
@@ -90,7 +90,7 @@ export function MapboxLab() {
           stats: null,
           inspection: null,
           errorStatus: null,
-          errorCategory: "no-token",
+          errorCategory: "missing-token",
           errorResource: null,
           errorMessage: "NEXT_PUBLIC_MAPBOX_TOKEN is not present in this build",
           ms: 0,
@@ -128,7 +128,7 @@ export function MapboxLab() {
         lastStatus = status;
         lastMessage = raw?.message ?? "unknown";
         lastResource = safeResource(raw?.url);
-        lastCategory = classifyError(status, lastMessage);
+        lastCategory = classifyError(status, lastMessage, lastResource);
       };
 
       try {
@@ -242,7 +242,7 @@ export function MapboxLab() {
     setRunning(false);
   }, [running]);
 
-  const token = getMapboxToken();
+  const token = getPublicMapboxToken();
   const webgl = detectWebGL();
   const conclusion = concludeFrom(results);
 
@@ -432,32 +432,54 @@ function concludeFrom(
     };
   }
 
-  // Auth failures are account-level and get named precisely.
-  if (failed.errorCategory === "unauthorized" || failed.errorStatus === 401 || failed.errorStatus === 403) {
-    const host = typeof window === "undefined" ? "this site" : window.location.hostname;
-    const isTile = (failed.errorResource ?? "").includes("/v4/");
-    return isTile
-      ? {
-          headline: "MAPBOX TILE ACCESS DENIED",
-          detail: `Tile request rejected with HTTP ${failed.errorStatus ?? "401/403"} at ${failed.errorResource ?? "the tile endpoint"}.`,
-          action: "Add the styles:tiles capability to this public token in the Mapbox dashboard.",
-          tone: "#FF6B6B",
-        }
-      : {
-          headline: "MAPBOX TOKEN REJECTED",
-          detail: `Hostname: ${host} — HTTP ${failed.errorStatus ?? "401/403"} at ${failed.errorResource ?? "the Mapbox API"}.`,
-          action: `Allow ${host} in this token's URL restrictions in the Mapbox dashboard.`,
-          tone: "#FF6B6B",
-        };
-  }
+  // Hostname is read live, never hard-coded — this page must work on whatever
+  // domain the project happens to be deployed to.
+  const host = typeof window === "undefined" ? "this site" : window.location.hostname;
+  const http = failed.errorStatus ?? "401/403";
 
-  if (failed.errorCategory === "no-token") {
-    return {
-      headline: "NO TOKEN IN THIS BUILD",
-      detail: "NEXT_PUBLIC_MAPBOX_TOKEN was not present when this build was compiled.",
-      action: "Set it in Vercel and redeploy — it is inlined at build time, not read at runtime.",
-      tone: "#FF6B6B",
-    };
+  switch (failed.errorCategory) {
+    case "missing-token":
+      return {
+        headline: "NO TOKEN IN THIS BUILD",
+        detail: "NEXT_PUBLIC_MAPBOX_TOKEN was not present when this build was compiled.",
+        action: "Set it in Vercel and redeploy — it is inlined at build time, not read at runtime.",
+        tone: "#FF6B6B",
+      };
+
+    case "tile-access-denied":
+      return {
+        headline: "MAPBOX TILE ACCESS DENIED",
+        detail: `Tile request rejected with HTTP ${http} at ${failed.errorResource ?? "the tile endpoint"}.`,
+        action: "Add the styles:tiles capability to this public token in the Mapbox dashboard.",
+        tone: "#FF6B6B",
+      };
+
+    case "style-access-denied":
+      return {
+        headline: "MAPBOX STYLE ACCESS DENIED",
+        detail: `Style request rejected with HTTP ${http} at ${failed.errorResource ?? "the styles endpoint"}.`,
+        action: "Add the styles:read capability to this public token in the Mapbox dashboard.",
+        tone: "#FF6B6B",
+      };
+
+    case "forbidden":
+      return {
+        headline: "MAPBOX TOKEN REJECTED",
+        detail: `Hostname: ${host} — HTTP ${http} at ${failed.errorResource ?? "the Mapbox API"}.`,
+        action: `Allow ${host} in this token's URL restrictions in the Mapbox dashboard.`,
+        tone: "#FF6B6B",
+      };
+
+    case "invalid-token":
+      return {
+        headline: "MAPBOX TOKEN INVALID",
+        detail: `Mapbox returned HTTP ${http}. The key was rejected outright rather than restricted.`,
+        action: "Confirm this is a public pk. token and that it has not been revoked, then redeploy.",
+        tone: "#FF6B6B",
+      };
+
+    default:
+      break;
   }
 
   if (failed.verdict === "unreadable") {

@@ -19,7 +19,6 @@ export type MapStage =
   | "webgl"
   | "container"
   | "sdk-import"
-  | "css-import"
   | "constructor"
   | "style-load"
   | "map-load"

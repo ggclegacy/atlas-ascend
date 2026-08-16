@@ -117,45 +117,63 @@ enforced structurally rather than by discipline:
 
 ---
 
-## Deploying to Vercel
+## Fresh Vercel Deployment
 
-1. Push to GitHub.
-2. Import the repository in Vercel — it detects Next.js with no configuration.
-3. Add **one** environment variable (Project → Settings → Environment Variables):
-   - `NEXT_PUBLIC_MAPBOX_TOKEN` — a public `pk.` token. This is the only
-     variable the map reads, from a single function in `src/lib/env.ts`.
-   - `MAPBOX_TOKEN` is **optional and unrelated to the map** — it only overrides
-     the geocoding token used by `/api/search`. If you are debugging a blank
-     map, delete it; it is a red herring.
-4. Deploy.
+1. Import the GitHub repository into Vercel.
+2. Framework: **Next.js** (auto-detected).
+3. Root directory: **`./`**
+4. Add environment variable: **`NEXT_PUBLIC_MAPBOX_TOKEN`**
+5. Paste a Mapbox public **`pk.`** token.
+6. Deploy.
+7. If the token uses URL restrictions, allow the deployed production hostname.
 
-Restrict the public token to your production domain in the Mapbox dashboard.
-It ships to the browser by design; URL restriction is how it is protected, not
-secrecy.
+Build command, install command, and output directory are all Vercel defaults —
+leave them untouched. There is no `vercel.json`, and none is needed.
 
-**Required token scopes.** A default public token has these already. If you
-created a dedicated token and unchecked scopes:
+**That one variable is the entire configuration.** It serves both the browser
+map and server-side geocoding. If it is absent the app still deploys and runs,
+showing an explicit **MAP SERVICE NOT CONFIGURED** state rather than a blank
+canvas.
 
-| Scope | Needed? | Consequence if missing |
+> The token is inlined at **build** time, not read at runtime. Adding or
+> changing it requires a rebuild — redeploying the same artifact will not pick
+> it up.
+
+### Required token capabilities
+
+A default Mapbox public token already has all of these. They only matter if you
+created a restricted token and unchecked boxes:
+
+| Capability | Needed | Consequence if missing |
 |---|---|---|
-| `styles:tiles` | **Yes** | Vector tiles never load — **the map renders black** |
-| `fonts:read` | **Yes** | Map labels disappear; geography still draws |
-| `styles:read` | No | `atlasNight` is authored in-repo; no hosted style is fetched |
+| `styles:tiles` | **Yes** | Vector tiles never load — **the map renders empty** |
+| `fonts:read` | **Yes** | Map labels vanish; geography still draws |
+| `styles:read` | Only for `/debug/mapbox` | The diagnostic route's stock-style comparison fails. `atlasNight` is authored in this repo, so the production map never fetches a hosted style. |
+
+Nothing else is required — no datasets, no uploads, no secret token.
 
 ## Diagnosing the map
 
-Two tools, both production-safe and unlinked from the product:
+Two tools, both production-safe, unlinked from the product, and `noindex`. Both
+read the hostname live, so they work on any deployment.
 
-- **`/debug/mapbox`** — isolation harness. Six levels from a stock Mapbox style
-  on the raw SDK up through the full Atlas provider. The first level that goes
-  black identifies the broken layer.
-- **`?atlasdebug=map`** — on-screen diagnostic panel over the Command Center:
-  token presence, WebGL, container size, every init stage, canvas dimensions,
-  style/layer counts, and the last Mapbox error with HTTP status.
+- **`/debug/mapbox`** — isolation harness. One button mounts six layers in turn
+  (stock Mapbox style → atlasNight → atmosphere/3D → Atlas provider → provider +
+  puck → the real `MapSurface`), **samples the actual framebuffer**, and prints
+  a pass/fail table plus a one-sentence conclusion. It distinguishes *nothing
+  drew* from *everything drew but is too dark to see* — which a screenshot
+  cannot.
+- **`?atlasdebug=map`** — on-screen panel over the Command Center: hostname,
+  token presence and prefix, WebGL, container size, every init stage, canvas
+  dimensions, style/layer counts, and the last Mapbox error with HTTP status.
 
-Neither exposes the token — only its presence, length, and `pk.`/`sk.` prefix.
+Neither exposes the token — only presence, length, and the `pk.` prefix.
 Request URLs are reduced to host and path, so the `access_token=` query string
 can never be screenshotted.
+
+Production always uses `atlasNight`. The stock Mapbox style is reachable **only**
+through `/debug/mapbox`; the app never silently falls back to it, because a
+stock map that looks fine would hide a real failure.
 
 ---
 

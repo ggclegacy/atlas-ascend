@@ -4,17 +4,20 @@ import type { PlaceSuggestion } from "@/destinations/types";
 /**
  * Place search — server route.
  *
- * The geocoding call is proxied through the server rather than made from the
- * browser for three reasons:
+ * Geocoding is proxied through the server rather than called from the browser
+ * so there is one place to add rate limiting and caching, and so swapping
+ * geocoding vendors never touches client code.
  *
- * 1. It lets the geocoding token be a *server-only* secret (`MAPBOX_TOKEN`),
- *    separate from the public map token. Geocoding is billed per request and
- *    is worth protecting more carefully than tile loads.
- * 2. It gives one place to add rate limiting and caching later.
- * 3. It means swapping geocoding vendors never touches client code.
+ * **It deliberately uses the same `NEXT_PUBLIC_MAPBOX_TOKEN` as the map.**
+ * Atlas Ascend requires exactly one Mapbox environment variable. A second
+ * server-only token was supported previously and has been removed: it bought
+ * nothing today (the token is public either way, and geocoding runs on the
+ * same account) while adding a variable that made deployment state ambiguous.
  *
- * Falls back to the public token so the feature works with a single-token
- * setup, which is the common case when getting started.
+ * When it becomes worth separating them — independent rate limits, separate
+ * rotation, per-surface billing attribution — reintroduce a server-only token
+ * *here only*. Nothing else needs to change: this function is the single point
+ * at which the geocoder's credential is resolved.
  */
 
 // Node runtime rather than edge: the Edge Runtime is deprecated in Next 16,
@@ -25,12 +28,8 @@ export const runtime = "nodejs";
 const MAPBOX_GEOCODE = "https://api.mapbox.com/search/geocode/v6/forward";
 
 function token(): string | null {
-  const serverToken = process.env.MAPBOX_TOKEN;
-  if (serverToken && serverToken.trim()) return serverToken.trim();
-
-  const publicToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-  if (publicToken && publicToken.trim()) return publicToken.trim();
-
+  const value = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+  if (value && value.trim().length > 0) return value.trim();
   return null;
 }
 

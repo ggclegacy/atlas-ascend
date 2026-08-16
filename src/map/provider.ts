@@ -18,22 +18,39 @@ export type MapProviderMaturity = "production" | "development-placeholder";
 /**
  * Why a map could not be mounted. Drives honest UI, not a console warning.
  *
- * `no-token` and `unauthorized` are deliberately distinct. Collapsing them —
- * as an earlier version did — tells a user whose token IS configured to go
- * configure their token, which sends them to fix the one thing that is not
- * broken. A rejected token is almost always a URL restriction that does not
- * list the deployment hostname, and the UI has to be able to say so.
+ * Deliberately granular. An earlier version collapsed every 401/403 into
+ * "no token", which told a user whose token was correctly configured to go fix
+ * the one thing that was not broken. The distinctions below each imply a
+ * *different action*, which is the only justification for a separate case:
+ *
+ * - `missing-token` → set the env var and redeploy
+ * - `invalid-token` → the token itself is wrong, revoked, or malformed
+ * - `forbidden` → the token is real but not permitted here (URL restriction)
+ * - `tile-access-denied` → the token lacks the tile capability
+ * - `style-access-denied` → the token lacks the styles capability
+ *
+ * The UI may simplify the wording; diagnostics must preserve the real one.
  */
 export type MapUnavailableReason =
-  /** No token present in the build at all. */
-  | "no-token"
-  /** Token present but rejected by Mapbox (401/403) — usually a URL restriction. */
-  | "unauthorized"
-  | "webgl-unsupported"
-  | "load-failed"
+  /** No token was present in the build at all. Mapbox is never constructed. */
+  | "missing-token"
+  /** 401 — Mapbox rejected the credential outright. */
+  | "invalid-token"
+  /** 403 — credential accepted but not permitted for this origin. */
+  | "forbidden"
+  /** 401/403 on a tile or TileJSON endpoint — a scope problem. */
+  | "tile-access-denied"
+  /** 401/403 on a styles endpoint — a scope problem. */
+  | "style-access-denied"
+  /** Another 4xx: malformed request, rate limit, missing resource. */
+  | "request-rejected"
+  /** 5xx or a transport failure. */
   | "network"
   /** The style never finished loading within the watchdog window. */
-  | "timeout";
+  | "timeout"
+  | "webgl-unsupported"
+  /** Classified as a failure, but not into any known bucket. */
+  | "unknown";
 
 export class MapUnavailableError extends Error {
   constructor(

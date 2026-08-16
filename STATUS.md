@@ -11,9 +11,9 @@ ledger. **Update it in the same commit as the code it describes.**
 | 🔵 **PLACEHOLDER** | Visual/structural only |
 | 🔴 **BLOCKED** | Requires credentials, provider setup, browser capability, or another dependency |
 
-**Phase:** 2 — web application foundation (+ blank-map incident)
-**Last updated:** 2026-08-15
-**Deployable to Vercel:** Yes. Builds clean; runs without any environment variable, with the map in a designed blocked state until a Mapbox token is set.
+**Phase:** 2 — web application foundation (+ blank-map incident, + fresh-deploy readiness)
+**Last updated:** 2026-08-16
+**Deployable to Vercel:** Yes, zero-config. Requires exactly one environment variable (`NEXT_PUBLIC_MAPBOX_TOKEN`), and deploys successfully without even that — showing an explicit MAP SERVICE NOT CONFIGURED state.
 
 ---
 
@@ -24,12 +24,12 @@ without the corresponding evidence.
 
 | Tier | Meaning | Current state |
 |---|---|---|
-| ✅ **BUILD VERIFIED** | Typecheck, tests, production build, local production serve all pass | **Yes** — 77 tests, clean build, all routes 200 |
+| ✅ **BUILD VERIFIED** | Typecheck, tests, production build, local production serve all pass | **Yes** — 84 tests, clean build, verified both with and without a token present |
 | ⬜ **RUNTIME VERIFIED** | A real browser executed the code and WebGL rendered a frame | **No** — this machine has no browser; no WebGL has ever executed here |
 | 🟡 **PRODUCTION OBSERVED** | The deployed Vercel app was inspected | **Partially (2026-08-16)** — the live deployment was fetched and inspected at the HTTP level. Visual rendering still unobserved. |
 
-**What production observation established (2026-08-16).** The deployment at
-`atlas-ascend-8kez.vercel.app` was fetched directly:
+**What production observation established (2026-08-16).** The deployment was
+fetched and inspected directly:
 
 - All routes return 200, including `/debug/mapbox`
 - The deployed client bundle contains the current commit (verified by the new
@@ -72,7 +72,7 @@ suspects ruled out by direct inspection of the built output:
 | z-index / stacking conflict | **Not the cause** | No z-index anywhere in the Command Center tree; chrome follows the map in DOM order. Explicit `z-0/10/20` layering added anyway to make it structural |
 | Map covering Atlas chrome | **Not possible now** | Map pinned to `z-0` beneath scrims (`z-10`) and controls (`z-20`) |
 | Mapbox exception unmounting the page | **Now impossible** | `MapErrorBoundary` isolates the map subtree |
-| `MAPBOX_TOKEN` interfering | **Cannot affect the map** | The map reads `NEXT_PUBLIC_MAPBOX_TOKEN` only, via one function. `MAPBOX_TOKEN` is used solely by `/api/search` |
+| `MAPBOX_TOKEN` interfering | **Could not affect the map** | The map read `NEXT_PUBLIC_MAPBOX_TOKEN` only. `MAPBOX_TOKEN` has since been removed entirely — the app now requires exactly one variable |
 
 **Both account-level hypotheses are now DISPROVEN (2026-08-16).** The token was
 extracted from the deployed production bundle and tested directly against every
@@ -132,6 +132,42 @@ look identical in a screenshot:
 - `rendered` — genuine geography
 
 That distinction is what kept this incident alive for three passes.
+
+---
+
+## Fresh-deployment readiness (2026-08-16)
+
+A pass to remove every avoidable source of deployment ambiguity before a new
+Vercel project is created.
+
+**Verified by building twice**, which is the only way to prove both halves of
+the fresh-deploy contract:
+
+| Build | Result |
+|---|---|
+| **No environment variables at all** | Builds clean. `/`, `/vehicles`, `/debug/mapbox`, `/manifest.webmanifest`, `/icon` all 200. `/api/search` returns `503 {"failure":"not-configured"}` — honest, not a crash. **Zero token literals in the bundle.** |
+| **With a probe token** | Builds clean. Token inlined into client chunks (statically analyzable access confirmed). All routes 200. **No full token in any HTML.** |
+
+**Changes:**
+
+| Area | Before | After |
+|---|---|---|
+| Mapbox env variables | 2 (`NEXT_PUBLIC_MAPBOX_TOKEN` + optional `MAPBOX_TOKEN`) | **1** — `MAPBOX_TOKEN` removed; `/api/search` uses the public token |
+| Token accessor | `getMapboxToken()` | `getPublicMapboxToken()` — one statically-analyzable literal access |
+| Mapbox CSS | dynamic `import()` (worked, but relied on bundler internals) | **static import** in `MapSurface` — determinism over 40KB |
+| Failure taxonomy | 6 reasons; every 401/403 collapsed to "unauthorized" | **10 reasons**, each implying a different action: `missing-token`, `invalid-token`, `forbidden`, `tile-access-denied`, `style-access-denied`, `request-rejected`, `network`, `timeout`, `webgl-unsupported`, `unknown` |
+| Default camera | module-private literal | exported `DEFAULT_CAMERA` + `isValidCamera()`, with tests for lat/lon order, null-island, and zoom sanity |
+| Old hostname | referenced in docs | removed; diagnostics read `window.location.hostname` live |
+
+**Confirmed for a fresh import:** Next.js auto-detected, root `./`, default
+build/install commands, no `vercel.json`, no `.vercel` committed, no stale
+deployment metadata, `engines.node >=20.9.0` (permissive — Vercel picks its
+default), single `mapbox-gl@3.28.1` with no duplicates, no secrets in tracked
+or untracked files.
+
+**Map rendering does not depend on geolocation.** The configuration memo has
+empty dependencies and there are zero location-conditional renders; the camera
+only moves once a genuine fix arrives.
 
 ---
 
