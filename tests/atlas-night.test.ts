@@ -107,6 +107,41 @@ describe("atlasNight style", () => {
     }
   });
 
+  it("keeps every road class legible against the obsidian ground", () => {
+    // The 2026-08-15 regression: roads topped out at #525263 on #05050A, which
+    // is a working map that reads as a black rectangle on a phone in daylight.
+    // "Obsidian" means depth, not invisibility — the network must clear the
+    // ground by a real margin at every level of the hierarchy.
+    const layers = build().layers;
+    const channelSum = (hex: string): number => {
+      const v = parseInt(hex.slice(1), 16);
+      return ((v >> 16) & 0xff) + ((v >> 8) & 0xff) + (v & 0xff);
+    };
+
+    const background = layers.find((l) => l.id === "background");
+    const ground = channelSum(background?.paint?.["background-color"] as string);
+
+    // The casing is deliberately *darker* than the ground — it is the cut
+    // channel the road fill sits in, not a visible surface of its own.
+    const roads = layers.filter(
+      (l) => l.id.startsWith("road-") && l.id !== "road-casing",
+    );
+    for (const road of roads) {
+      const color = road.paint?.["line-color"];
+      if (typeof color !== "string") continue;
+      expect(
+        channelSum(color) - ground,
+        `${road.id} is too close to the ground to see`,
+      ).toBeGreaterThanOrEqual(100);
+    }
+
+    // The most important class must be unmistakable.
+    const motorway = layers.find((l) => l.id === "road-motorway");
+    expect(
+      channelSum(motorway?.paint?.["line-color"] as string) - ground,
+    ).toBeGreaterThanOrEqual(300);
+  });
+
   it("keeps POI labels aggressively filtered and high-zoom only", () => {
     const poi = build().layers.find((layer) => layer.id === "label-poi");
     expect(poi).toBeDefined();

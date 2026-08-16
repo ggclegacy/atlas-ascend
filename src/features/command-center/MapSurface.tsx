@@ -8,8 +8,10 @@ import {
   type MapUnavailableReason,
 } from "@/map/provider";
 import type { MapConfiguration } from "@/map/types";
+import { isMapDebugRequested } from "@/map/mapbox/diagnostics";
 import { WarningIcon } from "@/components/atlas/icons";
 import { Eyebrow } from "@/components/atlas/primitives";
+import { MapDiagnosticsOverlay } from "./MapDiagnosticsOverlay";
 
 /**
  * The map surface — the environmental canvas the whole product sits on.
@@ -34,6 +36,13 @@ export function MapSurface({
   const [status, setStatus] = useState<"mounting" | "ready" | "blocked">("mounting");
   const [reason, setReason] = useState<MapUnavailableReason | null>(null);
   const [slow, setSlow] = useState(false);
+  // Mirrors the handle into state purely so the diagnostics overlay re-renders
+  // once a map exists; the ref remains the source of truth for commands.
+  const [debugHandle, setDebugHandle] = useState<MapHandle | null>(null);
+  const [debug, setDebug] = useState(false);
+
+  // Read after mount — `location` is unavailable during server rendering.
+  useEffect(() => setDebug(isMapDebugRequested()), []);
 
   // Mount once. The configuration is passed as the initial camera only —
   // subsequent camera changes go through the imperative handle, because
@@ -68,6 +77,7 @@ export function MapSurface({
           return;
         }
         handleRef.current = handle;
+        setDebugHandle(handle);
 
         handle.on("ready", () => {
           if (!cancelled) setStatus("ready");
@@ -135,6 +145,15 @@ export function MapSurface({
       )}
 
       {status === "mounting" && <MapLoading slow={slow} />}
+
+      {debug && (
+        <MapDiagnosticsOverlay
+          handle={debugHandle}
+          status={status}
+          reason={reason}
+          containerRef={containerRef}
+        />
+      )}
     </div>
   );
 }

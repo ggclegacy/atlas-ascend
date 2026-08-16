@@ -121,14 +121,41 @@ enforced structurally rather than by discipline:
 
 1. Push to GitHub.
 2. Import the repository in Vercel — it detects Next.js with no configuration.
-3. Add environment variables (Project → Settings → Environment Variables):
-   - `NEXT_PUBLIC_MAPBOX_TOKEN` — required for the map
-   - `MAPBOX_TOKEN` — optional; a separate server-only token for geocoding
+3. Add **one** environment variable (Project → Settings → Environment Variables):
+   - `NEXT_PUBLIC_MAPBOX_TOKEN` — a public `pk.` token. This is the only
+     variable the map reads, from a single function in `src/lib/env.ts`.
+   - `MAPBOX_TOKEN` is **optional and unrelated to the map** — it only overrides
+     the geocoding token used by `/api/search`. If you are debugging a blank
+     map, delete it; it is a red herring.
 4. Deploy.
 
 Restrict the public token to your production domain in the Mapbox dashboard.
 It ships to the browser by design; URL restriction is how it is protected, not
 secrecy.
+
+**Required token scopes.** A default public token has these already. If you
+created a dedicated token and unchecked scopes:
+
+| Scope | Needed? | Consequence if missing |
+|---|---|---|
+| `styles:tiles` | **Yes** | Vector tiles never load — **the map renders black** |
+| `fonts:read` | **Yes** | Map labels disappear; geography still draws |
+| `styles:read` | No | `atlasNight` is authored in-repo; no hosted style is fetched |
+
+## Diagnosing the map
+
+Two tools, both production-safe and unlinked from the product:
+
+- **`/debug/mapbox`** — isolation harness. Six levels from a stock Mapbox style
+  on the raw SDK up through the full Atlas provider. The first level that goes
+  black identifies the broken layer.
+- **`?atlasdebug=map`** — on-screen diagnostic panel over the Command Center:
+  token presence, WebGL, container size, every init stage, canvas dimensions,
+  style/layer counts, and the last Mapbox error with HTTP status.
+
+Neither exposes the token — only its presence, length, and `pk.`/`sk.` prefix.
+Request URLs are reduced to host and path, so the `access_token=` query string
+can never be screenshotted.
 
 ---
 

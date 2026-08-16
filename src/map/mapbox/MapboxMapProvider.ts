@@ -3,6 +3,7 @@ import { getMapboxToken } from "@/lib/env";
 import {
   type MapEvents,
   type MapHandle,
+  type MapInspection,
   type MapProvider,
   type MapProviderMaturity,
   MapUnavailableError,
@@ -22,6 +23,8 @@ import {
   describeToken,
   detectWebGL,
   hasNonZeroSize,
+  recordError,
+  safeResource,
   stage,
   stageFailed,
   warn,
@@ -281,11 +284,18 @@ export class MapboxHandle implements MapHandle {
 
       // The request URL identifies which resource failed (tiles vs glyphs vs
       // TileJSON). Strip the query string — it carries the access token.
-      const resource = raw?.url ? stripQuery(raw.url) : "unknown resource";
+      const resource = safeResource(raw?.url);
       stageFailed(
         "source-error",
-        `${status ?? "no status"} ${message} — ${resource}`,
+        `${status ?? "no status"} ${message} — ${resource ?? "unknown resource"}`,
       );
+      recordError({
+        category: reason,
+        status,
+        resource,
+        message,
+        at: Date.now(),
+      });
 
       // Only auth/network failures are fatal to the whole surface. A single
       // failed glyph range should not blank a map that is otherwise fine.
@@ -407,6 +417,10 @@ export class MapboxHandle implements MapHandle {
     if (!this.destroyed) this.map.resize();
   }
 
+  inspect(): MapInspection {
+    return inspectMapboxMap(this.map, this.destroyed);
+  }
+
   on<K extends keyof MapEvents>(event: K, handler: MapEvents[K]): () => void {
     this.listeners[event].add(handler);
 
@@ -515,10 +529,65 @@ export function classifyError(
   return "load-failed";
 }
 
-/** Removes the query string, which carries the access token. */
-function stripQuery(url: string): string {
-  const index = url.indexOf("?");
-  return index === -1 ? url : url.slice(0, index);
+/**
+ * Reads live state off a Mapbox map instance.
+ *
+ * Exported so the isolation harness at `/debug/mapbox` can report identically
+ * for a raw Mapbox map as for one behind the Atlas abstraction — which is what
+ * makes an A/B comparison between the two meaningful.
+ */
+export function inspectMapboxMap(
+  map: MapboxMap,
+  destroyed = false,
+): MapInspection {
+  const empty: MapInspection = {
+    canvasExists: false,
+    canvasWidth: null,
+    canvasHeight: null,
+    cssWidth: null,
+    cssHeight: null,
+    hasWebGLContext: false,
+    loaded: false,
+    styleLoaded: false,
+    sourceCount: null,
+    layerCount: null,
+    center: null,
+    zoom: null,
+    pitch: null,
+    bearing: null,
+  };
+
+  if (destroyed) return empty;
+
+  try {
+    const canvas = map.getCanvas() as HTMLCanvasElement | undefined;
+    const style = map.getStyle();
+    const center = map.getCenter();
+
+    return {
+      canvasExists: Boolean(canvas),
+      canvasWidth: canvas?.width ?? null,
+      canvasHeight: canvas?.height ?? null,
+      cssWidth: canvas ? Math.round(canvas.getBoundingClientRect().width) : null,
+      cssHeight: canvas ? Math.round(canvas.getBoundingClientRect().height) : null,
+      // A canvas whose WebGL context was lost still exists in the DOM and still
+      // reports dimensions — it just renders nothing. Checking the context is
+      // the only way to catch that.
+      hasWebGLContext: Boolean(
+        canvas?.getContext("webgl2") ?? canvas?.getContext("webgl"),
+      ),
+      loaded: map.loaded(),
+      styleLoaded: map.isStyleLoaded(),
+      sourceCount: style?.sources ? Object.keys(style.sources).length : null,
+      layerCount: style?.layers ? style.layers.length : null,
+      center: { latitude: center.lat, longitude: center.lng },
+      zoom: map.getZoom(),
+      pitch: map.getPitch(),
+      bearing: map.getBearing(),
+    };
+  } catch {
+    return empty;
+  }
 }
 
 /** Matches the design system's `--ease-atlas-cinematic`. */

@@ -47,6 +47,7 @@ import { LocalVehicleStore } from "@/vehicles/store";
 import type { Vehicle } from "@/vehicles/types";
 import { describeVehicle, formatOdometer } from "@/vehicles/types";
 import { AtlasCommandSheet } from "./AtlasCommandSheet";
+import { MapErrorBoundary } from "./MapErrorBoundary";
 import { MapSurface } from "./MapSurface";
 
 /**
@@ -223,25 +224,34 @@ export function CommandCenter() {
 
   return (
     <main className="atlas-viewport atlas-chrome bg-obsidian">
-      <MapSurface
-        configuration={configuration}
-        onReady={handleMapReady}
-        onUserInteraction={handleUserInteraction}
-      />
+      {/* Layering is explicit rather than relying on DOM order alone.
+          The map is the environmental layer and must always sit beneath the
+          scrims and chrome — a map that covers Atlas's controls is as broken as
+          one that does not render. An error boundary keeps a map failure from
+          unmounting the Command Center around it. */}
+      <div className="absolute inset-0 z-0">
+        <MapErrorBoundary>
+          <MapSurface
+            configuration={configuration}
+            onReady={handleMapReady}
+            onUserInteraction={handleUserInteraction}
+          />
+        </MapErrorBoundary>
+      </div>
 
       {/* ---------- Scrims ---------- */}
       <div
         aria-hidden="true"
-        className="atlas-scrim-top pointer-events-none absolute inset-x-0 top-0 h-52"
+        className="atlas-scrim-top pointer-events-none absolute inset-x-0 top-0 z-10 h-52"
       />
       <div
         aria-hidden="true"
-        className="atlas-scrim-bottom pointer-events-none absolute inset-x-0 bottom-0 h-80"
+        className="atlas-scrim-bottom pointer-events-none absolute inset-x-0 bottom-0 z-10 h-80"
       />
 
       {/* ---------- Content ---------- */}
       <div
-        className="pointer-events-none absolute inset-0 flex flex-col"
+        className="pointer-events-none absolute inset-0 z-20 flex flex-col"
         style={{
           paddingTop: "calc(var(--atlas-safe-top) + 10px)",
           paddingBottom: "calc(var(--atlas-safe-bottom) + 14px)",

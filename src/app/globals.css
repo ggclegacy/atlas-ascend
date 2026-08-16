@@ -344,11 +344,16 @@ body {
    Legibility over a full-bleed map comes from gradient scrims, never solid
    bars. A bar guarantees the same contrast and severs the spatial illusion
    doing it. This is the mechanism that lets the map genuinely run edge to edge. */
+/* Lightened 2026-08-15. The first cut ran 0.82 / 0.93 black over 208px + 320px,
+   which on a phone covered roughly two-thirds of the viewport and, combined
+   with an over-dark basemap, made a working map look like a black rectangle.
+   Contrast for the floating chrome is preserved by the glass panels themselves;
+   the scrims only need to take the edge off, not blanket the map. */
 .atlas-scrim-top {
   background-image: linear-gradient(
     180deg,
-    rgb(0 0 0 / 0.82) 0%,
-    rgb(0 0 0 / 0.45) 45%,
+    rgb(0 0 0 / 0.68) 0%,
+    rgb(0 0 0 / 0.3) 50%,
     rgb(0 0 0 / 0) 100%
   );
 }
@@ -357,8 +362,8 @@ body {
   background-image: linear-gradient(
     180deg,
     rgb(0 0 0 / 0) 0%,
-    rgb(0 0 0 / 0.55) 42%,
-    rgb(0 0 0 / 0.93) 100%
+    rgb(0 0 0 / 0.4) 45%,
+    rgb(0 0 0 / 0.82) 100%
   );
 }
 

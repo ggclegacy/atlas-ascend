@@ -45,6 +45,34 @@ export class MapUnavailableError extends Error {
   }
 }
 
+/**
+ * A snapshot of what the map is actually doing right now.
+ *
+ * Vendor-neutral on purpose: a canvas that exists at 390×780 with a live WebGL
+ * context but zero rendered layers is a completely different failure from a map
+ * that never constructed, and the difference is invisible from the outside.
+ * This is the only way to tell them apart from a screenshot.
+ */
+export interface MapInspection {
+  readonly canvasExists: boolean;
+  /** Backing store size in device pixels. */
+  readonly canvasWidth: number | null;
+  readonly canvasHeight: number | null;
+  /** Layout size in CSS pixels. Zero here with a non-zero backing store is a
+   *  classic "canvas present but invisible" signature. */
+  readonly cssWidth: number | null;
+  readonly cssHeight: number | null;
+  readonly hasWebGLContext: boolean;
+  readonly loaded: boolean;
+  readonly styleLoaded: boolean;
+  readonly sourceCount: number | null;
+  readonly layerCount: number | null;
+  readonly center: Coordinate | null;
+  readonly zoom: number | null;
+  readonly pitch: number | null;
+  readonly bearing: number | null;
+}
+
 /** Events a mounted map can emit back to the application. */
 export interface MapEvents {
   /** First full render completed — safe to reveal the surface. */
@@ -73,6 +101,8 @@ export interface MapHandle {
   setDestination(coordinate: Coordinate | null): void;
   /** Recompute size after a container or viewport change. */
   resize(): void;
+  /** Diagnostic snapshot. Cheap; safe to poll. */
+  inspect(): MapInspection;
   on<K extends keyof MapEvents>(event: K, handler: MapEvents[K]): () => void;
   destroy(): void;
 }

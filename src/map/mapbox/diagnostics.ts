@@ -39,9 +39,14 @@ const PREFIX = "[AtlasMap]";
 const trace: StageRecord[] = [];
 let started = 0;
 
-function verboseEnabled(): boolean {
+/**
+ * Whether the caller explicitly asked for map diagnostics.
+ *
+ * Query-param driven so a deployed build is diagnosable without a redeploy,
+ * which is the entire point — the failure only reproduces in production.
+ */
+export function isMapDebugRequested(): boolean {
   if (typeof window === "undefined") return false;
-  if (process.env.NODE_ENV !== "production") return true;
   try {
     if (new URLSearchParams(window.location.search).get("atlasdebug") === "map") {
       return true;
@@ -50,6 +55,12 @@ function verboseEnabled(): boolean {
   } catch {
     return false;
   }
+}
+
+function verboseEnabled(): boolean {
+  if (typeof window === "undefined") return false;
+  if (process.env.NODE_ENV !== "production") return true;
+  return isMapDebugRequested();
 }
 
 function elapsed(): string {
@@ -80,6 +91,51 @@ export function warn(message: string): void {
 
 export function getTrace(): readonly StageRecord[] {
   return trace;
+}
+
+/** Milliseconds since the first recorded stage. */
+export function elapsedMs(): number {
+  return started === 0 ? 0 : Date.now() - started;
+}
+
+// ---------------------------------------------------------------------------
+// Last error — the single most useful field in a bug report
+// ---------------------------------------------------------------------------
+
+export interface RecordedError {
+  readonly category: string;
+  readonly status: number | null;
+  /** Host + path only. The query string carries the access token. */
+  readonly resource: string | null;
+  readonly message: string;
+  readonly at: number;
+}
+
+let lastError: RecordedError | null = null;
+
+export function recordError(error: RecordedError): void {
+  lastError = error;
+}
+
+export function getLastError(): RecordedError | null {
+  return lastError;
+}
+
+/**
+ * Reduces a URL to `host/path`, discarding the query string.
+ *
+ * Mapbox puts `access_token=` in every request URL, so a raw URL must never
+ * reach a diagnostic panel that someone will screenshot.
+ */
+export function safeResource(url: string | undefined): string | null {
+  if (!url) return null;
+  try {
+    const parsed = new URL(url, "https://example.invalid");
+    return `${parsed.host}${parsed.pathname}`;
+  } catch {
+    const index = url.indexOf("?");
+    return index === -1 ? url : url.slice(0, index);
+  }
 }
 
 /**

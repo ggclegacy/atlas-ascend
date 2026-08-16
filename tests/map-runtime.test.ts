@@ -25,15 +25,45 @@ describe("atlasNight is a valid Mapbox style", () => {
   it("validates with zero errors in every capability configuration", () => {
     for (const buildings3D of [true, false]) {
       for (const terrain of [true, false]) {
-        const errors = validate(atlasNightStyle({ buildings3D, terrain })) as Array<{
-          message: string;
-        }>;
-        expect(
-          errors.map((e) => e.message),
-          `buildings3D=${buildings3D} terrain=${terrain}`,
-        ).toEqual([]);
+        for (const atmosphere of [true, false]) {
+          const errors = validate(
+            atlasNightStyle({ buildings3D, terrain, atmosphere }),
+          ) as Array<{ message: string }>;
+          expect(
+            errors.map((e) => e.message),
+            `buildings3D=${buildings3D} terrain=${terrain} atmosphere=${atmosphere}`,
+          ).toEqual([]);
+        }
       }
     }
+  });
+
+  it("keeps fog on by default and drops it only when asked", () => {
+    // The debug harness A/Bs this: fog darkens distance toward near-black, so
+    // on a style this dark it is a candidate for "renders correctly but reads
+    // as black". Production behavior must stay unchanged by its existence.
+    const withFog = atlasNightStyle({ buildings3D: true, terrain: false }) as unknown as {
+      fog?: unknown;
+    };
+    expect(withFog.fog).toBeDefined();
+
+    const without = atlasNightStyle({
+      buildings3D: true,
+      terrain: false,
+      atmosphere: false,
+    }) as unknown as { fog?: unknown };
+    expect(without.fog).toBeUndefined();
+  });
+
+  it("always declares at least one source and a full layer stack", () => {
+    // A style that validates but has no sources renders a blank canvas — the
+    // exact symptom under investigation, so assert it directly.
+    const style = atlasNightStyle({ buildings3D: true, terrain: false }) as unknown as {
+      sources: Record<string, unknown>;
+      layers: unknown[];
+    };
+    expect(Object.keys(style.sources).length).toBeGreaterThan(0);
+    expect(style.layers.length).toBeGreaterThan(15);
   });
 });
 

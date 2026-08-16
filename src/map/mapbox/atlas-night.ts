@@ -32,40 +32,58 @@ import type { StyleSpecification } from "mapbox-gl";
 // Palette — obsidian world
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// LEGIBILITY REVISION (2026-08-15)
+//
+// The first cut of this palette was too dark to function. Roads topped out at
+// #525263 on a #05050A ground — roughly 12% luminance separation at the widest
+// point — and the Command Center's scrims cover most of a phone viewport on top
+// of that. The result was a map that could render perfectly and still read as a
+// black rectangle in daylight on a phone.
+//
+// "Obsidian" is about *depth*, not about being unreadable, and the original
+// atlasNight brief called for "highly legible, built for navigation". The
+// ground stays near-black; the network on top of it lifts substantially so the
+// hierarchy is actually visible. This is a correction against the spec, not a
+// change of direction.
+// ---------------------------------------------------------------------------
+
 const OBSIDIAN = "#05050A";
-const LAND = "#08080D";
-const LAND_RESIDENTIAL = "#0B0B11";
+const LAND = "#0A0A10";
+const LAND_RESIDENTIAL = "#101018";
 
-/** Violet-tinted near-black. Water reads as depth, never as blue. */
-const WATER = "#0A0917";
-const WATER_DEEP = "#070610";
+/** Violet-tinted. Water reads as depth, never as blue. */
+const WATER = "#12102A";
+const WATER_DEEP = "#0C0A1E";
 
-const PARK = "#0A100D";
-const PARK_MAJOR = "#0B130F";
+const PARK = "#0E1712";
+const PARK_MAJOR = "#101B14";
 
-const BUILDING = "#101017";
-const BUILDING_3D = "#13131B";
-const BUILDING_3D_TOP = "#191922";
+const BUILDING = "#191922";
+const BUILDING_3D = "#1E1E29";
+const BUILDING_3D_TOP = "#2B2B39";
 
 /**
- * Road ladder. Each step up in importance gains luminance, which is what makes
- * the network hierarchy readable at a glance while driving.
+ * Road ladder. Each step gains luminance with importance, which is what makes
+ * the network hierarchy readable at a glance while driving. Spread across a
+ * much wider range than the first cut so the ladder survives daylight, a
+ * dimmed phone screen, and the scrims layered above it.
  */
-const ROAD_SERVICE = "#191920";
-const ROAD_STREET = "#23232B";
-const ROAD_TERTIARY = "#2A2A34";
-const ROAD_SECONDARY = "#31313D";
-const ROAD_PRIMARY = "#3B3B48";
-const ROAD_TRUNK = "#454554";
-const ROAD_MOTORWAY = "#525263";
+const ROAD_SERVICE = "#2A2A33";
+const ROAD_STREET = "#35353F";
+const ROAD_TERTIARY = "#41414D";
+const ROAD_SECONDARY = "#4D4D5B";
+const ROAD_PRIMARY = "#5A5A6A";
+const ROAD_TRUNK = "#68687A";
+const ROAD_MOTORWAY = "#78788C";
 
 /** Casing sits darker than the fill and creates the sense of a cut channel. */
-const ROAD_CASING = "#020205";
+const ROAD_CASING = "#030308";
 
-const RAIL = "#1A1A22";
-const ADMIN = "#2B2B36";
+const RAIL = "#26262F";
+const ADMIN = "#3A3A47";
 
-const LABEL_ROAD = "#8F8C99";
+const LABEL_ROAD = "#ADAAB6";
 const LABEL_PLACE = "#E8E6E1";
 const LABEL_PLACE_MINOR = "#9C99A5";
 const LABEL_POI = "#6B6874";
@@ -100,6 +118,14 @@ export interface AtlasNightOptions {
   readonly buildings3D: boolean;
   /** Include terrain elevation. Adds a DEM source and extra tile requests. */
   readonly terrain: boolean;
+  /**
+   * Include atmospheric fog.
+   *
+   * Defaults to true. Exposed so `/debug/mapbox` can A/B it: fog darkens
+   * distance toward near-black, and on a style this dark it is a plausible
+   * contributor to a map that renders correctly but reads as black.
+   */
+  readonly atmosphere?: boolean;
 }
 
 /**
@@ -593,14 +619,22 @@ export function atlasNightStyle(options: AtlasNightOptions): StyleSpecification 
     // Atmospheric depth. The violet horizon is continuity with the original
     // Swift placeholder's horizon glow, and it is the only place violet appears
     // in the basemap.
-    fog: {
-      range: [0.8, 9],
-      color: "#0A0912",
-      "high-color": "#1B1038",
-      "space-color": "#000000",
-      "horizon-blend": 0.06,
-      "star-intensity": 0.02,
-    },
+    ...(options.atmosphere === false
+      ? {}
+      : {
+          fog: {
+            // Pushed back and lightened from the first cut (`[0.8, 9]` toward
+            // near-black #0A0912). At a 62° driving pitch that started fogging
+            // the near-middle distance almost immediately and drove most of the
+            // frame to black. Atmosphere should suggest depth, not erase it.
+            range: [1.6, 14],
+            color: "#191630",
+            "high-color": "#2B1C55",
+            "space-color": "#05050A",
+            "horizon-blend": 0.08,
+            "star-intensity": 0.03,
+          },
+        }),
     light: {
       anchor: "viewport",
       color: "#C8C4D8",
