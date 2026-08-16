@@ -15,6 +15,13 @@ import {
 } from "@/map/mapbox/MapboxMapProvider";
 import type { MapHandle, MapInspection } from "@/map/provider";
 import { pitchFor } from "@/map/types";
+import {
+  MIN_ROAD_GROUND_DELTA,
+  afterScrim,
+  clearBandFraction,
+  luma,
+  peakScrimAlpha,
+} from "@/map/legibility";
 import { Panel, Row, yesNo } from "./DebugReadout";
 import {
   describeVerdict,
@@ -49,7 +56,11 @@ const LEVELS: readonly LevelSpec[] = [
   { id: 3, label: "Raw SDK + atlasNight (full)", what: "adds fog + 3D buildings" },
   { id: 4, label: "Atlas provider", what: "the Atlas map abstraction" },
   { id: 5, label: "Atlas provider + user puck", what: "custom markers" },
-  { id: 6, label: "Command Center MapSurface", what: "the real product component" },
+  {
+    id: 6,
+    label: "atlasNight + Command Center scrims",
+    what: "the product's overlay composite — what you actually see",
+  },
 ];
 
 interface LevelResult {
@@ -132,7 +143,7 @@ export function MapboxLab() {
       };
 
       try {
-        if (level.id >= 4) {
+        if (level.id === 4 || level.id === 5) {
           const provider = new MapboxMapProvider();
           handle = await provider.mount(container, {
             camera: {
@@ -166,6 +177,21 @@ export function MapboxLab() {
                     : { buildings3D: true, terrain: false, atmosphere: true },
                 );
 
+          // Level 6 adds the product's actual scrim elements over the map, so
+          // what is on screen is the real Command Center composite rather than
+          // a bare map. They are DOM siblings, exactly as in production.
+          if (level.id === 6) {
+            for (const cls of ["atlas-scrim-top", "atlas-scrim-bottom"] as const) {
+              const scrim = document.createElement("div");
+              const top = cls === "atlas-scrim-top";
+              scrim.className = cls;
+              scrim.style.cssText = `position:absolute;left:0;right:0;${
+                top ? "top:0;height:176px;" : "bottom:0;height:288px;"
+              }pointer-events:none;z-index:10;`;
+              host.appendChild(scrim);
+            }
+          }
+
           const map = new mapboxgl.Map({
             container,
             style: style as never,
@@ -188,16 +214,26 @@ export function MapboxLab() {
         // Let the GPU settle before reading pixels.
         await delay(700);
 
-        // Levels 4+ go through the abstraction, which does not enable
+        // Levels 4–5 go through the abstraction, which does not enable
         // preserveDrawingBuffer — so pixel sampling is only meaningful for
-        // 1–3. For 4+ the inspection data carries the verdict.
+        // 1–3 and 6. For 4–5 the inspection data carries the verdict.
         const inspection = handle ? handle.inspect() : mapForPixels ? inspectMapboxMap(mapForPixels) : null;
         const stats = mapForPixels
           ? sampleCanvas(mapForPixels.getCanvas() as HTMLCanvasElement)
           : null;
 
+        // Level 6 is the only level that answers the question that actually
+        // matters: what survives the Command Center's scrims. The canvas
+        // sample cannot see them — they are DOM siblings composited by the
+        // browser — so the composite is computed from the measured canvas
+        // luminance and the modeled scrim alpha.
+        const composite =
+          level.id === 6 && stats ? compositeReport(stats.meanLuminance) : null;
+
         const verdict: LevelResult["verdict"] = mapForPixels
-          ? verdictFor(stats)
+          ? level.id === 6 && composite && composite.worstDelta < 12
+            ? "unreadable"
+            : verdictFor(stats)
           : inspection?.loaded && (inspection.layerCount ?? 0) > 0
             ? "rendered"
             : "flat";
@@ -502,6 +538,33 @@ function concludeFrom(
         : `Levels 1–${failed.id - 1} rendered. The failure is introduced by: ${spec?.what ?? "this layer"}.`,
     action: failed.errorMessage ? `Last error: ${failed.errorMessage}` : null,
     tone: "#FF6B6B",
+  };
+}
+
+
+/**
+ * What the Command Center's scrims do to a measured map luminance.
+ *
+ * The canvas sample cannot see DOM overlays, so the composite is computed:
+ * measured canvas luminance × (1 − scrim alpha) at the worst point on screen.
+ * `worstDelta` is the motorway-to-ground separation that survives there.
+ */
+function compositeReport(meanCanvasLuma: number): {
+  peakAlpha: number;
+  clearFraction: number;
+  worstDelta: number;
+  bestDelta: number;
+} {
+  const viewport = 852; // iPhone-class viewport, the primary target.
+  const peakAlpha = peakScrimAlpha(viewport);
+  const ground = luma("#05050A");
+  const motorway = luma("#7C7C91");
+
+  return {
+    peakAlpha,
+    clearFraction: clearBandFraction(viewport),
+    worstDelta: afterScrim(motorway, peakAlpha) - afterScrim(ground, peakAlpha),
+    bestDelta: motorway - ground,
   };
 }
 

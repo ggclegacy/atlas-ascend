@@ -234,11 +234,11 @@ export function CommandCenter() {
       {/* ---------- Scrims ---------- */}
       <div
         aria-hidden="true"
-        className="atlas-scrim-top pointer-events-none absolute inset-x-0 top-0 z-10 h-52"
+        className="atlas-scrim-top pointer-events-none absolute inset-x-0 top-0 z-10 h-44"
       />
       <div
         aria-hidden="true"
-        className="atlas-scrim-bottom pointer-events-none absolute inset-x-0 bottom-0 z-10 h-80"
+        className="atlas-scrim-bottom pointer-events-none absolute inset-x-0 bottom-0 z-10 h-72"
       />
 
       {/* ---------- Content ---------- */}

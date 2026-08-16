@@ -12,21 +12,64 @@ ledger. **Update it in the same commit as the code it describes.**
 | 🔴 **BLOCKED** | Requires credentials, provider setup, browser capability, or another dependency |
 
 **Phase:** 2 — web application foundation (+ blank-map incident, + fresh-deploy readiness)
-**Last updated:** 2026-08-16
+**Last updated:** 2026-08-16 (invisible-map fix)
 **Deployable to Vercel:** Yes, zero-config. Requires exactly one environment variable (`NEXT_PUBLIC_MAPBOX_TOKEN`), and deploys successfully without even that — showing an explicit MAP SERVICE NOT CONFIGURED state.
 
 ---
 
 ## Verification tiers
 
-Three distinct levels of confidence. Nothing may be promoted between them
-without the corresponding evidence.
+| Tier | State |
+|---|---|
+| ✅ **BUILD VERIFIED** | Yes — 95 tests, clean typecheck and production build |
+| ✅ **MAPBOX CONNECTIVITY VERIFIED** | Yes — deployed token returns 200 from TileJSON, tiles, glyphs, geocoding, stock styles |
+| ✅ **ATLAS PROVIDER VERIFIED** | Yes — `/debug/mapbox` levels 4–5 render real geography |
+| ✅ **COMMAND CENTER FRAMEBUFFER VERIFIED** | Yes — the map canvas contains real geography |
+| ⬜ **NORMAL COMMAND CENTER VISIBILITY** | **Not yet** — only becomes yes once observed on screen after this fix |
 
-| Tier | Meaning | Current state |
+---
+
+## Invisible-map root cause (2026-08-16) — FIXED
+
+**The diagnostics were measuring the wrong surface.** `sampleCanvas()` reads
+`map.getCanvas()` — the WebGL framebuffer. The Command Center's scrims are DOM
+siblings composited by the browser *after* that. A canvas full of geography and
+a screen that reads black are entirely compatible facts, which is why four
+passes of "ALL LEVELS RENDER" never contradicted the symptom.
+
+Compounding it: `/debug/mapbox` level 6 was labeled "Command Center MapSurface"
+but its code branched on `level.id >= 4`, making it byte-identical to level 5.
+It never mounted a single Command Center overlay.
+
+**Measured composite, iPhone-class 852px viewport:**
+
+| Metric | Before | After |
 |---|---|---|
-| ✅ **BUILD VERIFIED** | Typecheck, tests, production build, local production serve all pass | **Yes** — 84 tests, clean build, verified both with and without a token present |
-| ⬜ **RUNTIME VERIFIED** | A real browser executed the code and WebGL rendered a frame | **No** — this machine has no browser; no WebGL has ever executed here |
-| 🟡 **PRODUCTION OBSERVED** | The deployed Vercel app was inspected | **Partially (2026-08-16)** — the live deployment was fetched and inspected at the HTTP level. Visual rendering still unobserved. |
+| Peak scrim alpha | 0.82 | **0.70** |
+| Scrim heights | 208px + 320px | **176px + 288px** |
+| Viewport left clear | 38% | **45%** |
+| Motorway↔ground, unscrimmed | 120.8 luma | 120.8 |
+| Motorway↔ground, under peak scrim | **21.7 luma** | **36.2 luma** |
+| Bottom scrim intruding into middle third | **yes** | no |
+
+The key realization: every floating control (vehicle chip, pills, prompt bar) is
+`.atlas-glass` and carries its own background, and the telemetry readout already
+has a drop-shadow. The scrims were darkening the entire map to buy contrast that
+the chrome already provided for itself.
+
+Road ladder also re-spaced to even ~13-luma steps (47→126) so each class
+resolves distinctly. Ground stays at 5.6 luma — obsidian is depth, not
+brightness.
+
+**Guards added** (`src/map/legibility.ts` + `tests/legibility.test.ts`) modeling
+the scrim composite analytically: opacity ceiling, clear-band floor, middle-third
+protection, per-class road/ground delta after worst-case scrim, ladder spacing,
+and a ground-darkness ceiling so the fix can never become "brighten until it
+works". Mutation-tested — 4 of them fail against the previously-shipped values.
+
+---
+
+## Production observation
 
 **What production observation established (2026-08-16).** The deployment was
 fetched and inspected directly:

@@ -344,16 +344,24 @@ body {
    Legibility over a full-bleed map comes from gradient scrims, never solid
    bars. A bar guarantees the same contrast and severs the spatial illusion
    doing it. This is the mechanism that lets the map genuinely run edge to edge. */
-/* Lightened 2026-08-15. The first cut ran 0.82 / 0.93 black over 208px + 320px,
-   which on a phone covered roughly two-thirds of the viewport and, combined
-   with an over-dark basemap, made a working map look like a black rectangle.
-   Contrast for the floating chrome is preserved by the glass panels themselves;
-   the scrims only need to take the edge off, not blanket the map. */
+/* Rebalanced 2026-08-16, from measurement rather than feel. See
+   `src/map/legibility.ts`, which models this composite and is asserted in tests.
+
+   History: 0.82/0.93 over 208+320px → 0.68/0.82 over the same → now
+   0.55/0.70 over 176+288px. The earlier cuts left only ~38% of a phone
+   viewport unscrimmed and crushed motorway-vs-ground separation from 117 to
+   21 luma at the bottom edge — a map drawing perfectly still read as black.
+
+   The key realization: every piece of floating chrome (vehicle chip, pills,
+   prompt bar) is `.atlas-glass` and carries its own background. The scrims are
+   only needed for bare text — the telemetry readout — which additionally has
+   its own drop-shadow. So they can be far lighter than originally assumed
+   without costing any legibility. */
 .atlas-scrim-top {
   background-image: linear-gradient(
     180deg,
-    rgb(0 0 0 / 0.68) 0%,
-    rgb(0 0 0 / 0.3) 50%,
+    rgb(0 0 0 / 0.55) 0%,
+    rgb(0 0 0 / 0.2) 45%,
     rgb(0 0 0 / 0) 100%
   );
 }
@@ -362,8 +370,8 @@ body {
   background-image: linear-gradient(
     180deg,
     rgb(0 0 0 / 0) 0%,
-    rgb(0 0 0 / 0.4) 45%,
-    rgb(0 0 0 / 0.82) 100%
+    rgb(0 0 0 / 0.28) 45%,
+    rgb(0 0 0 / 0.7) 100%
   );
 }
 

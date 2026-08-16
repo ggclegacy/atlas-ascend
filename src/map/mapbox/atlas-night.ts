@@ -49,8 +49,8 @@ import type { StyleSpecification } from "mapbox-gl";
 // ---------------------------------------------------------------------------
 
 const OBSIDIAN = "#05050A";
-const LAND = "#0A0A10";
-const LAND_RESIDENTIAL = "#101018";
+const LAND = "#0C0C14";
+const LAND_RESIDENTIAL = "#14141E";
 
 /** Violet-tinted. Water reads as depth, never as blue. */
 const WATER = "#12102A";
@@ -69,13 +69,13 @@ const BUILDING_3D_TOP = "#2B2B39";
  * much wider range than the first cut so the ladder survives daylight, a
  * dimmed phone screen, and the scrims layered above it.
  */
-const ROAD_SERVICE = "#2A2A33";
-const ROAD_STREET = "#35353F";
-const ROAD_TERTIARY = "#41414D";
-const ROAD_SECONDARY = "#4D4D5B";
-const ROAD_PRIMARY = "#5A5A6A";
-const ROAD_TRUNK = "#68687A";
-const ROAD_MOTORWAY = "#78788C";
+const ROAD_SERVICE = "#2E2E38";
+const ROAD_STREET = "#3A3A45";
+const ROAD_TERTIARY = "#474754";
+const ROAD_SECONDARY = "#545463";
+const ROAD_PRIMARY = "#616172";
+const ROAD_TRUNK = "#6E6E81";
+const ROAD_MOTORWAY = "#7C7C91";
 
 /** Casing sits darker than the fill and creates the sense of a cut channel. */
 const ROAD_CASING = "#030308";
