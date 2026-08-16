@@ -1,111 +1,143 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { getMapboxToken } from "@/lib/env";
 import { atlasNightStyle } from "@/map/mapbox/atlas-night";
 import {
   describeToken,
   detectWebGL,
-  getLastError,
   safeResource,
 } from "@/map/mapbox/diagnostics";
 import {
   MapboxMapProvider,
+  classifyError,
   inspectMapboxMap,
 } from "@/map/mapbox/MapboxMapProvider";
 import type { MapHandle, MapInspection } from "@/map/provider";
 import { pitchFor } from "@/map/types";
 import { Panel, Row, yesNo } from "./DebugReadout";
+import {
+  describeVerdict,
+  type PixelStats,
+  type RenderVerdict,
+  sampleCanvas,
+  verdictFor,
+} from "./pixels";
 
 /**
  * MAPBOX ISOLATION HARNESS — `/debug/mapbox`
  *
- * Not part of the product. Its only job is to answer, in order, the questions
- * that a black Command Center map cannot distinguish between:
+ * Not part of the product. One button mounts each layer of the stack in turn,
+ * samples the actual framebuffer, and reports a verdict. The first level that
+ * fails is the broken one.
  *
- *   1. Can Mapbox GL JS render *anything* with this token, in this browser?
- *   2. Does atlasNight render, once we know Mapbox itself works?
- *   3. Does the Atlas provider abstraction preserve that?
- *
- * Each level adds exactly one layer. The first level that goes black is the
- * broken one. Debugging six layers at once is what made the last two passes
- * inconclusive.
+ * The framebuffer sampling is what makes this conclusive rather than another
+ * screenshot to squint at: it can tell "nothing drew" apart from "everything
+ * drew but it is too dark to see", which is exactly the ambiguity that made
+ * this bug survive three passes.
  */
 
-type Level = 1 | 2 | 3 | 4 | 5 | 6;
-
 interface LevelSpec {
-  readonly id: Level;
+  readonly id: number;
   readonly label: string;
-  readonly detail: string;
+  readonly what: string;
 }
 
 const LEVELS: readonly LevelSpec[] = [
-  { id: 1, label: "1 · Mapbox Standard", detail: "Stock style, raw SDK. Known-good baseline." },
-  { id: 2, label: "2 · Mapbox Dark", detail: "Stock dark style, raw SDK." },
-  { id: 3, label: "3 · atlasNight minimal", detail: "No fog, no 3D, no terrain. Flat camera." },
-  { id: 4, label: "4 · atlasNight full", detail: "Fog + 3D buildings, pitched camera." },
-  { id: 5, label: "5 · Atlas provider", detail: "Through MapboxMapProvider abstraction." },
-  { id: 6, label: "6 · Provider + markers", detail: "Adds the user puck and destination pin." },
+  { id: 1, label: "Raw SDK + stock style", what: "Mapbox itself, token, WebGL" },
+  { id: 2, label: "Raw SDK + atlasNight (minimal)", what: "atlasNight layers, no fog/3D" },
+  { id: 3, label: "Raw SDK + atlasNight (full)", what: "adds fog + 3D buildings" },
+  { id: 4, label: "Atlas provider", what: "the Atlas map abstraction" },
+  { id: 5, label: "Atlas provider + user puck", what: "custom markers" },
+  { id: 6, label: "Command Center MapSurface", what: "the real product component" },
 ];
+
+interface LevelResult {
+  readonly id: number;
+  readonly verdict: RenderVerdict | "error";
+  readonly stats: PixelStats | null;
+  readonly inspection: MapInspection | null;
+  readonly errorStatus: number | null;
+  readonly errorCategory: string | null;
+  readonly errorResource: string | null;
+  readonly errorMessage: string | null;
+  readonly ms: number;
+}
 
 /** Austin — a neutral, unambiguously-mapped default. Not the user's location. */
 const CENTER: [number, number] = [-97.7431, 30.2672];
+const LOAD_TIMEOUT_MS = 14_000;
 
 export function MapboxLab() {
-  const [level, setLevel] = useState<Level>(1);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const cleanupRef = useRef<(() => void) | null>(null);
+  const hostRef = useRef<HTMLDivElement>(null);
+  const [results, setResults] = useState<LevelResult[]>([]);
+  const [running, setRunning] = useState(false);
+  const [current, setCurrent] = useState<number | null>(null);
 
-  const [inspection, setInspection] = useState<MapInspection | null>(null);
-  const [events, setEvents] = useState<string[]>([]);
-  const [constructed, setConstructed] = useState(false);
-  const [startedAt, setStartedAt] = useState(() => Date.now());
+  const runAll = useCallback(async () => {
+    const host = hostRef.current;
+    if (!host || running) return;
 
-  const log = useCallback((line: string) => {
-    setEvents((prior) => [...prior.slice(-24), `${line}`]);
-  }, []);
-
-  // Rebuild the map whenever the level changes. Full teardown each time so a
-  // level's result is never contaminated by the previous one.
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    let disposed = false;
-    setInspection(null);
-    setEvents([]);
-    setConstructed(false);
-    setStartedAt(Date.now());
+    setRunning(true);
+    setResults([]);
 
     const token = getMapboxToken();
     if (token === null) {
-      log("ABORT: no token in build");
+      setResults([
+        {
+          id: 0,
+          verdict: "error",
+          stats: null,
+          inspection: null,
+          errorStatus: null,
+          errorCategory: "no-token",
+          errorResource: null,
+          errorMessage: "NEXT_PUBLIC_MAPBOX_TOKEN is not present in this build",
+          ms: 0,
+        },
+      ]);
+      setRunning(false);
       return;
     }
 
-    let poll: ReturnType<typeof setInterval> | null = null;
+    const [mod] = await Promise.all([
+      import("mapbox-gl"),
+      import("mapbox-gl/dist/mapbox-gl.css"),
+    ]);
+    const mapboxgl = mod.default;
+    mapboxgl.accessToken = token;
 
-    void (async () => {
+    for (const level of LEVELS) {
+      setCurrent(level.id);
+      // Fresh container per level so nothing carries over.
+      const container = document.createElement("div");
+      container.style.cssText = "position:absolute;inset:0;";
+      host.replaceChildren(container);
+
+      const started = Date.now();
+      let lastStatus: number | null = null;
+      let lastCategory: string | null = null;
+      let lastResource: string | null = null;
+      let lastMessage: string | null = null;
+      let teardown: (() => void) | null = null;
+      let mapForPixels: import("mapbox-gl").Map | null = null;
+      let handle: MapHandle | null = null;
+
+      const noteError = (raw: (Error & { status?: number; url?: string }) | undefined) => {
+        const status = typeof raw?.status === "number" ? raw.status : null;
+        lastStatus = status;
+        lastMessage = raw?.message ?? "unknown";
+        lastResource = safeResource(raw?.url);
+        lastCategory = classifyError(status, lastMessage);
+      };
+
       try {
-        const [mod] = await Promise.all([
-          import("mapbox-gl"),
-          import("mapbox-gl/dist/mapbox-gl.css"),
-        ]);
-        if (disposed) return;
-
-        log("sdk imported");
-        const mapboxgl = mod.default;
-        mapboxgl.accessToken = token;
-
-        // Levels 5 and 6 go through the real Atlas abstraction; 1–4 use the
-        // raw SDK so the abstraction itself is isolated as a variable.
-        if (level >= 5) {
+        if (level.id >= 4) {
           const provider = new MapboxMapProvider();
-          const handle: MapHandle = await provider.mount(container, {
+          handle = await provider.mount(container, {
             camera: {
               center: { latitude: CENTER[1], longitude: CENTER[0] },
-              zoom: 15.5,
+              zoom: 15.4,
               pitch: pitchFor("driving"),
               bearing: 0,
             },
@@ -113,83 +145,106 @@ export function MapboxLab() {
             perspective: "driving",
             annotations: [],
           });
-          if (disposed) {
-            handle.destroy();
-            return;
-          }
-          setConstructed(true);
-          log("provider mounted");
-
-          handle.on("ready", () => log("EVENT ready"));
-          handle.on("error", (error) => log(`EVENT error: ${error.reason} — ${error.message}`));
-
-          if (level === 6) {
+          handle.on("error", (error) => {
+            lastCategory = error.reason;
+            lastMessage = error.message;
+          });
+          if (level.id >= 5) {
             handle.setUserLocation({ latitude: CENTER[1], longitude: CENTER[0] }, 45);
             handle.setDestination({ latitude: 30.28, longitude: -97.73 });
-            log("markers added");
           }
-
-          poll = setInterval(() => setInspection(handle.inspect()), 500);
-          cleanupRef.current = () => {
-            if (poll) clearInterval(poll);
-            handle.destroy();
-          };
-          return;
-        }
-
-        const style =
-          level === 1
-            ? "mapbox://styles/mapbox/standard"
-            : level === 2
+          const h = handle;
+          teardown = () => h.destroy();
+          await waitFor(() => h.inspect().loaded, LOAD_TIMEOUT_MS);
+        } else {
+          const style =
+            level.id === 1
               ? "mapbox://styles/mapbox/dark-v11"
               : atlasNightStyle(
-                  level === 3
+                  level.id === 2
                     ? { buildings3D: false, terrain: false, atmosphere: false }
                     : { buildings3D: true, terrain: false, atmosphere: true },
                 );
 
-        const map = new mapboxgl.Map({
-          container,
-          style: style as never,
-          center: CENTER,
-          zoom: 15.5,
-          pitch: level === 3 ? 0 : 55,
-          bearing: 0,
-        });
-        setConstructed(true);
-        log("constructor returned");
-
-        map.on("style.load", () => log("EVENT style.load"));
-        map.on("load", () => log("EVENT load"));
-        map.on("idle", () => log("EVENT idle (first full render)"));
-        map.on("error", (event) => {
-          const raw = event.error as (Error & { status?: number; url?: string }) | undefined;
-          log(
-            `EVENT error ${raw?.status ?? "-"} ${raw?.message ?? "unknown"} @ ${safeResource(raw?.url) ?? "-"}`,
+          const map = new mapboxgl.Map({
+            container,
+            style: style as never,
+            center: CENTER,
+            zoom: 15.4,
+            pitch: level.id === 2 ? 0 : 55,
+            bearing: 0,
+            // Required to read the framebuffer back. Debug-only.
+            preserveDrawingBuffer: true,
+            attributionControl: false,
+          });
+          mapForPixels = map;
+          map.on("error", (event) =>
+            noteError(event.error as (Error & { status?: number; url?: string }) | undefined),
           );
-        });
+          teardown = () => map.remove();
+          await waitFor(() => map.loaded(), LOAD_TIMEOUT_MS);
+        }
 
-        poll = setInterval(() => setInspection(inspectMapboxMap(map)), 500);
-        cleanupRef.current = () => {
-          if (poll) clearInterval(poll);
-          map.remove();
-        };
+        // Let the GPU settle before reading pixels.
+        await delay(700);
+
+        // Levels 4+ go through the abstraction, which does not enable
+        // preserveDrawingBuffer — so pixel sampling is only meaningful for
+        // 1–3. For 4+ the inspection data carries the verdict.
+        const inspection = handle ? handle.inspect() : mapForPixels ? inspectMapboxMap(mapForPixels) : null;
+        const stats = mapForPixels
+          ? sampleCanvas(mapForPixels.getCanvas() as HTMLCanvasElement)
+          : null;
+
+        const verdict: LevelResult["verdict"] = mapForPixels
+          ? verdictFor(stats)
+          : inspection?.loaded && (inspection.layerCount ?? 0) > 0
+            ? "rendered"
+            : "flat";
+
+        setResults((prior) => [
+          ...prior,
+          {
+            id: level.id,
+            verdict,
+            stats,
+            inspection,
+            errorStatus: lastStatus,
+            errorCategory: lastCategory,
+            errorResource: lastResource,
+            errorMessage: lastMessage,
+            ms: Date.now() - started,
+          },
+        ]);
       } catch (error) {
-        log(`THREW: ${error instanceof Error ? error.message : String(error)}`);
+        setResults((prior) => [
+          ...prior,
+          {
+            id: level.id,
+            verdict: "error",
+            stats: null,
+            inspection: null,
+            errorStatus: lastStatus,
+            errorCategory: lastCategory ?? "threw",
+            errorResource: lastResource,
+            errorMessage:
+              lastMessage ?? (error instanceof Error ? error.message : String(error)),
+            ms: Date.now() - started,
+          },
+        ]);
+      } finally {
+        teardown?.();
       }
-    })();
+    }
 
-    return () => {
-      disposed = true;
-      cleanupRef.current?.();
-      cleanupRef.current = null;
-    };
-  }, [level, log]);
+    host.replaceChildren();
+    setCurrent(null);
+    setRunning(false);
+  }, [running]);
 
   const token = getMapboxToken();
   const webgl = detectWebGL();
-  const lastError = getLastError();
-  const spec = LEVELS.find((candidate) => candidate.id === level);
+  const conclusion = concludeFrom(results);
 
   return (
     <main
@@ -198,46 +253,41 @@ export function MapboxLab() {
         background: "#08080B",
         color: "#F4F2ED",
         fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+        padding: 12,
+        display: "grid",
+        gap: 10,
       }}
     >
-      {/* Level selector */}
-      <div style={{ padding: "12px 12px 8px", display: "flex", flexWrap: "wrap", gap: 6 }}>
-        {LEVELS.map((candidate) => (
-          <button
-            key={candidate.id}
-            type="button"
-            onClick={() => setLevel(candidate.id)}
-            style={{
-              fontFamily: "inherit",
-              fontSize: 11,
-              padding: "6px 10px",
-              borderRadius: 6,
-              cursor: "pointer",
-              border:
-                level === candidate.id
-                  ? "1px solid #C4912F"
-                  : "1px solid rgba(255,255,255,0.16)",
-              background: level === candidate.id ? "rgba(196,145,47,0.16)" : "transparent",
-              color: level === candidate.id ? "#F6E7BE" : "#A5A2AC",
-            }}
-          >
-            {candidate.label}
-          </button>
-        ))}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <button
+          type="button"
+          onClick={() => void runAll()}
+          disabled={running}
+          style={{
+            fontFamily: "inherit",
+            fontSize: 13,
+            padding: "10px 18px",
+            borderRadius: 8,
+            cursor: running ? "default" : "pointer",
+            border: "1px solid #C4912F",
+            background: running ? "rgba(196,145,47,0.12)" : "rgba(196,145,47,0.24)",
+            color: "#F6E7BE",
+          }}
+        >
+          {running ? `Running level ${current ?? "…"} of 6…` : "Run all 6 levels"}
+        </button>
+        <span style={{ fontSize: 11, color: "#6B6874" }}>
+          Mounts each layer, samples the framebuffer, reports a verdict.
+        </span>
       </div>
 
-      <p style={{ margin: "0 12px 10px", fontSize: 11, color: "#6B6874" }}>
-        {spec?.detail} — if this level is black but a lower one is not, the layer
-        this level adds is the broken one.
-      </p>
-
-      {/* The map. Fixed height so container sizing is never a variable here. */}
+      {/* Offscreen-ish mount host. Visible so you can watch each level draw. */}
       <div
-        ref={containerRef}
+        ref={hostRef}
         style={{
-          height: "46vh",
-          minHeight: 260,
-          margin: "0 12px",
+          position: "relative",
+          height: "34vh",
+          minHeight: 200,
           border: "1px solid rgba(255,255,255,0.18)",
           borderRadius: 8,
           overflow: "hidden",
@@ -245,119 +295,209 @@ export function MapboxLab() {
         }}
       />
 
-      <div style={{ padding: 12, display: "grid", gap: 10 }}>
-        <Panel title="Environment">
-          <Row label="hostname" value={typeof window === "undefined" ? "—" : window.location.hostname} />
-          <Row label="env" value={process.env.NODE_ENV ?? "unknown"} />
-          <Row
-            label="token present"
-            value={yesNo(token !== null).text}
-            verdict={yesNo(token !== null).verdict}
-          />
-          <Row label="token" value={describeToken(token)} />
-          <Row label="token prefix" value={token ? `${token.slice(0, 3)}…` : "—"} />
-          <Row
-            label="WebGL"
-            value={webgl.supported ? webgl.detail : "unavailable"}
-            verdict={webgl.supported ? "ok" : "bad"}
-          />
-          <Row
-            label="constructor reached"
-            value={yesNo(constructed).text}
-            verdict={yesNo(constructed).verdict}
-          />
-          <Row label="elapsed" value={`${Date.now() - startedAt}ms`} />
-        </Panel>
-
-        <Panel title="Canvas & style">
-          {inspection === null ? (
-            <Row label="status" value="no map instance yet" verdict="warn" />
-          ) : (
-            <>
-              <Row
-                label="canvas exists"
-                value={yesNo(inspection.canvasExists).text}
-                verdict={yesNo(inspection.canvasExists).verdict}
-              />
-              <Row
-                label="canvas (device px)"
-                value={`${inspection.canvasWidth ?? "—"} × ${inspection.canvasHeight ?? "—"}`}
-              />
-              <Row
-                label="canvas (CSS px)"
-                value={`${inspection.cssWidth ?? "—"} × ${inspection.cssHeight ?? "—"}`}
-                verdict={inspection.cssWidth ? "ok" : "bad"}
-              />
-              <Row
-                label="WebGL context"
-                value={yesNo(inspection.hasWebGLContext).text}
-                verdict={yesNo(inspection.hasWebGLContext).verdict}
-              />
-              <Row
-                label="style loaded"
-                value={yesNo(inspection.styleLoaded).text}
-                verdict={yesNo(inspection.styleLoaded).verdict}
-              />
-              <Row
-                label="map loaded"
-                value={yesNo(inspection.loaded).text}
-                verdict={yesNo(inspection.loaded).verdict}
-              />
-              <Row
-                label="sources"
-                value={inspection.sourceCount ?? "—"}
-                verdict={inspection.sourceCount ? "ok" : "warn"}
-              />
-              <Row
-                label="layers"
-                value={inspection.layerCount ?? "—"}
-                verdict={inspection.layerCount ? "ok" : "warn"}
-              />
-              <Row
-                label="center"
-                value={
-                  inspection.center
-                    ? `${inspection.center.latitude.toFixed(4)}, ${inspection.center.longitude.toFixed(4)}`
-                    : "—"
-                }
-              />
-              <Row label="zoom" value={inspection.zoom?.toFixed(2) ?? "—"} />
-              <Row label="pitch" value={inspection.pitch?.toFixed(0) ?? "—"} />
-            </>
+      {conclusion && (
+        <div
+          style={{
+            border: `1px solid ${conclusion.tone}`,
+            background: `${conclusion.tone}1A`,
+            borderRadius: 8,
+            padding: "10px 12px",
+          }}
+        >
+          <div style={{ color: conclusion.tone, fontSize: 12, fontWeight: 700, letterSpacing: "0.08em" }}>
+            {conclusion.headline}
+          </div>
+          <div style={{ color: "#D6D3DC", fontSize: 11, marginTop: 4 }}>{conclusion.detail}</div>
+          {conclusion.action && (
+            <div style={{ color: "#F6E7BE", fontSize: 11, marginTop: 6 }}>
+              → {conclusion.action}
+            </div>
           )}
-        </Panel>
+        </div>
+      )}
 
-        <Panel title="Last Mapbox error">
-          {lastError === null ? (
-            <Row label="status" value="none recorded" verdict="ok" />
-          ) : (
-            <>
-              <Row label="category" value={lastError.category} verdict="bad" />
-              <Row label="HTTP status" value={lastError.status ?? "—"} verdict="bad" />
-              <Row label="resource" value={lastError.resource ?? "—"} />
-              <Row label="message" value={lastError.message} />
-            </>
-          )}
-        </Panel>
+      <Panel title="Results">
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 10.5, minWidth: 560 }}>
+            <thead>
+              <tr style={{ color: "#6B6874", textAlign: "left" }}>
+                {["#", "level", "rendered", "canvas", "GL", "style", "map", "layers", "src", "HTTP", "error"].map(
+                  (h) => (
+                    <th key={h} style={{ padding: "4px 6px", borderBottom: "1px solid rgba(255,255,255,0.14)" }}>
+                      {h}
+                    </th>
+                  ),
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {results.length === 0 ? (
+                <tr>
+                  <td colSpan={11} style={{ padding: 10, color: "#6B6874" }}>
+                    Press “Run all 6 levels”.
+                  </td>
+                </tr>
+              ) : (
+                results.map((r) => {
+                  const spec = LEVELS.find((l) => l.id === r.id);
+                  const ok = r.verdict === "rendered";
+                  const tone = ok ? "#3FB98A" : r.verdict === "unreadable" ? "#E0A64B" : "#FF6B6B";
+                  const i = r.inspection;
+                  return (
+                    <tr key={r.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                      <td style={{ padding: "4px 6px", color: "#6B6874" }}>{r.id}</td>
+                      <td style={{ padding: "4px 6px" }}>{spec?.label ?? "—"}</td>
+                      <td style={{ padding: "4px 6px", color: tone, fontWeight: 700 }}>
+                        {ok ? "YES" : r.verdict.toUpperCase()}
+                      </td>
+                      <td style={{ padding: "4px 6px" }}>
+                        {i?.cssWidth ? `${i.cssWidth}×${i.cssHeight}` : "—"}
+                      </td>
+                      <td style={{ padding: "4px 6px" }}>{i?.hasWebGLContext ? "y" : "n"}</td>
+                      <td style={{ padding: "4px 6px" }}>{i?.styleLoaded ? "y" : "n"}</td>
+                      <td style={{ padding: "4px 6px" }}>{i?.loaded ? "y" : "n"}</td>
+                      <td style={{ padding: "4px 6px" }}>{i?.layerCount ?? "—"}</td>
+                      <td style={{ padding: "4px 6px" }}>{i?.sourceCount ?? "—"}</td>
+                      <td style={{ padding: "4px 6px", color: r.errorStatus ? "#FF6B6B" : "#6B6874" }}>
+                        {r.errorStatus ?? "—"}
+                      </td>
+                      <td style={{ padding: "4px 6px", color: r.errorCategory ? "#FF6B6B" : "#6B6874" }}>
+                        {r.errorCategory ?? "—"}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
 
-        <Panel title="Event log">
-          {events.length === 0 ? (
-            <div style={{ color: "#6B6874" }}>no events yet</div>
-          ) : (
-            events.map((line, index) => (
-              <div
-                key={`${index}-${line}`}
-                style={{
-                  color: line.includes("error") || line.includes("THREW") ? "#FF6B6B" : "#A5A2AC",
-                  padding: "1px 0",
-                }}
-              >
-                {line}
-              </div>
-            ))
-          )}
-        </Panel>
-      </div>
+        {results.some((r) => r.stats) && (
+          <div style={{ marginTop: 8, color: "#6B6874" }}>
+            {results
+              .filter((r) => r.stats)
+              .map((r) => (
+                <div key={r.id}>
+                  L{r.id}: mean luma {r.stats?.meanLuminance.toFixed(1)}, max{" "}
+                  {r.stats?.maxLuminance.toFixed(0)}, {r.stats?.distinctColors} colors,{" "}
+                  {((r.stats?.nonBlackFraction ?? 0) * 100).toFixed(1)}% lit — {describeVerdict(r.verdict as RenderVerdict)}
+                </div>
+              ))}
+          </div>
+        )}
+      </Panel>
+
+      <Panel title="Environment">
+        <Row label="hostname" value={typeof window === "undefined" ? "—" : window.location.hostname} />
+        <Row label="env" value={process.env.NODE_ENV ?? "unknown"} />
+        <Row
+          label="token present"
+          value={yesNo(token !== null).text}
+          verdict={yesNo(token !== null).verdict}
+        />
+        <Row label="token" value={describeToken(token)} />
+        <Row label="token prefix" value={token ? `${token.slice(0, 6)}…` : "—"} />
+        <Row
+          label="WebGL"
+          value={webgl.supported ? webgl.detail : "unavailable"}
+          verdict={webgl.supported ? "ok" : "bad"}
+        />
+        <Row label="device pixel ratio" value={typeof window === "undefined" ? "—" : window.devicePixelRatio} />
+      </Panel>
     </main>
   );
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * Turns the level results into a one-line answer.
+ *
+ * This is the point of the page: not data, a conclusion.
+ */
+function concludeFrom(
+  results: readonly LevelResult[],
+): { headline: string; detail: string; action: string | null; tone: string } | null {
+  if (results.length === 0) return null;
+
+  const failed = results.find((r) => r.verdict !== "rendered");
+
+  if (!failed) {
+    return {
+      headline: "ALL LEVELS RENDER",
+      detail:
+        "Mapbox, atlasNight, the Atlas provider, and the Command Center map component all drew real geography.",
+      action: "If the product still looks black, the problem is above the map layer.",
+      tone: "#3FB98A",
+    };
+  }
+
+  // Auth failures are account-level and get named precisely.
+  if (failed.errorCategory === "unauthorized" || failed.errorStatus === 401 || failed.errorStatus === 403) {
+    const host = typeof window === "undefined" ? "this site" : window.location.hostname;
+    const isTile = (failed.errorResource ?? "").includes("/v4/");
+    return isTile
+      ? {
+          headline: "MAPBOX TILE ACCESS DENIED",
+          detail: `Tile request rejected with HTTP ${failed.errorStatus ?? "401/403"} at ${failed.errorResource ?? "the tile endpoint"}.`,
+          action: "Add the styles:tiles capability to this public token in the Mapbox dashboard.",
+          tone: "#FF6B6B",
+        }
+      : {
+          headline: "MAPBOX TOKEN REJECTED",
+          detail: `Hostname: ${host} — HTTP ${failed.errorStatus ?? "401/403"} at ${failed.errorResource ?? "the Mapbox API"}.`,
+          action: `Allow ${host} in this token's URL restrictions in the Mapbox dashboard.`,
+          tone: "#FF6B6B",
+        };
+  }
+
+  if (failed.errorCategory === "no-token") {
+    return {
+      headline: "NO TOKEN IN THIS BUILD",
+      detail: "NEXT_PUBLIC_MAPBOX_TOKEN was not present when this build was compiled.",
+      action: "Set it in Vercel and redeploy — it is inlined at build time, not read at runtime.",
+      tone: "#FF6B6B",
+    };
+  }
+
+  if (failed.verdict === "unreadable") {
+    return {
+      headline: `LEVEL ${failed.id} RENDERS BUT IS TOO DARK`,
+      detail: `Structure is present in the framebuffer (max luminance ${failed.stats?.maxLuminance.toFixed(0)}) but almost nothing is above the visible threshold.`,
+      action: "This is a style luminance problem, not a Mapbox failure.",
+      tone: "#E0A64B",
+    };
+  }
+
+  const spec = LEVELS.find((l) => l.id === failed.id);
+  const prior = results.filter((r) => r.id < failed.id && r.verdict === "rendered");
+
+  return {
+    headline: `LEVEL ${failed.id} IS THE FIRST FAILURE`,
+    detail:
+      prior.length === 0
+        ? "Even the stock Mapbox style failed — the problem is the token, WebGL, or the network, not Atlas code."
+        : `Levels 1–${failed.id - 1} rendered. The failure is introduced by: ${spec?.what ?? "this layer"}.`,
+    action: failed.errorMessage ? `Last error: ${failed.errorMessage}` : null,
+    tone: "#FF6B6B",
+  };
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Polls `predicate` until true or the timeout elapses. Never rejects. */
+function waitFor(predicate: () => boolean, timeout: number): Promise<void> {
+  return new Promise((resolve) => {
+    const started = Date.now();
+    const tick = () => {
+      if (predicate() || Date.now() - started > timeout) {
+        resolve();
+        return;
+      }
+      setTimeout(tick, 150);
+    };
+    tick();
+  });
 }

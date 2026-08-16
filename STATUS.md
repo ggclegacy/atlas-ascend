@@ -24,12 +24,21 @@ without the corresponding evidence.
 
 | Tier | Meaning | Current state |
 |---|---|---|
-| ✅ **BUILD VERIFIED** | Typecheck, tests, production build, local production serve all pass | **Yes** — 69 tests, clean build, all routes 200 |
-| ⬜ **RUNTIME VERIFIED** | A real browser executed the code and WebGL rendered | **No** — this machine has no browser and no Mapbox token; no map has ever been rendered here |
-| ⬜ **PRODUCTION OBSERVED** | The deployed Vercel app was observed working | **No** — the deployment has never been observed from this environment |
+| ✅ **BUILD VERIFIED** | Typecheck, tests, production build, local production serve all pass | **Yes** — 77 tests, clean build, all routes 200 |
+| ⬜ **RUNTIME VERIFIED** | A real browser executed the code and WebGL rendered a frame | **No** — this machine has no browser; no WebGL has ever executed here |
+| 🟡 **PRODUCTION OBSERVED** | The deployed Vercel app was inspected | **Partially (2026-08-16)** — the live deployment was fetched and inspected at the HTTP level. Visual rendering still unobserved. |
 
-Everything below labeled 🟢 REAL is **BUILD VERIFIED** only, unless it says
-otherwise. The map specifically is unverified at both higher tiers.
+**What production observation established (2026-08-16).** The deployment at
+`atlas-ascend-8kez.vercel.app` was fetched directly:
+
+- All routes return 200, including `/debug/mapbox`
+- The deployed client bundle contains the current commit (verified by the new
+  motorway color `#78788c` and the `atlasdebug` flag)
+- **`NEXT_PUBLIC_MAPBOX_TOKEN` is present in the production client bundle**
+- That exact token was then tested against every Mapbox endpoint the map uses
+
+What it did **not** establish: whether WebGL draws a frame in a real browser.
+That still requires a human looking at a screen.
 
 ---
 
@@ -65,12 +74,25 @@ suspects ruled out by direct inspection of the built output:
 | Mapbox exception unmounting the page | **Now impossible** | `MapErrorBoundary` isolates the map subtree |
 | `MAPBOX_TOKEN` interfering | **Cannot affect the map** | The map reads `NEXT_PUBLIC_MAPBOX_TOKEN` only, via one function. `MAPBOX_TOKEN` is used solely by `/api/search` |
 
-**Remaining live hypotheses:**
+**Both account-level hypotheses are now DISPROVEN (2026-08-16).** The token was
+extracted from the deployed production bundle and tested directly against every
+Mapbox endpoint the map depends on, with and without a `Referer` header for the
+deployment hostname:
 
-1. Token lacks the **`styles:tiles`** scope → tiles never load → correct style,
-   empty black canvas. **Account action — not fixable from code.**
-2. Token URL restrictions exclude `atlas-ascend-8kez.vercel.app` → 401/403.
-   **Account action — not fixable from code.**
+| Resource | With Referer | No Referer | Meaning |
+|---|---|---|---|
+| TileJSON (`/v4/mapbox.mapbox-streets-v8.json`) | **200** | 200 | `styles:tiles` present |
+| Vector tile (`/v4/…/12/935/1686.mvt`) | **200** | 200 | tiles genuinely load |
+| Glyphs (`/fonts/v1/…/DIN Pro Medium`) | **200** | 200 | `fonts:read` present |
+| Geocoding (`/search/geocode/v6`) | **200** | 200 | search would work |
+| Stock style (`/styles/v1/mapbox/dark-v11`) | **200** | 200 | token fully valid |
+
+Identical results with and without the `Referer` header prove there are **no URL
+restrictions** on this token. **No Mapbox account action is required.**
+
+~~1. Token lacks the `styles:tiles` scope.~~ **Disproven — 200.**
+~~2. Token URL restrictions exclude the hostname.~~ **Disproven — 200 either way.**
+
 3. ~~The map renders correctly but **reads as black**.~~ → **FIXED IN CODE
    (2026-08-16).** This was the only candidate addressable from the repository,
    and on inspection the numbers were damning: roads ran `#191920`–`#525263`
@@ -95,9 +117,21 @@ The ground stays near-black — obsidian is about depth, not invisibility. A tes
 now enforces a minimum luminance separation for every road class against the
 background, so the map cannot silently become unreadable again.
 
-**Hypotheses 1 and 2 remain decidable from a screenshot** via `/debug/mapbox`
-(six-level isolation, stock style ↔ atlasNight A/B) and `?atlasdebug=map`
-(on-screen canvas dimensions, style/layer counts, last error with HTTP status).
+**Where this leaves the incident.** Token, scopes, restrictions, style validity,
+CSS wiring, stacking, and Tailwind output are all eliminated by direct evidence.
+The legibility defect — the one candidate that was both real and fixable from
+code — has been fixed and deployed. The remaining unknown is narrow: whether a
+real browser draws a frame.
+
+`/debug/mapbox` now answers that objectively. It mounts each layer in turn and
+**samples the actual framebuffer**, which distinguishes the two failures that
+look identical in a screenshot:
+
+- `flat` — one uniform color: the style applied, tiles never drew
+- `unreadable` — real structure present, nothing above the visible threshold
+- `rendered` — genuine geography
+
+That distinction is what kept this incident alive for three passes.
 
 ---
 
