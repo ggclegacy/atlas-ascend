@@ -1,0 +1,1370 @@
+{
+ "code": "Ok",
+ "waypoints": [
+  {
+   "location": [
+    -97.689917,
+    30.330119
+   ],
+   "name": "",
+   "distance": 15.487,
+   "time_zone": {
+    "offset": "-05:00",
+    "identifier": "America/Chicago",
+    "abbreviation": "CDT"
+   }
+  },
+  {
+   "location": [
+    -97.82034,
+    30.219563
+   ],
+   "name": "",
+   "distance": 58.619,
+   "time_zone": {
+    "offset": "-05:00",
+    "identifier": "America/Chicago",
+    "abbreviation": "CDT"
+   }
+  }
+ ],
+ "routes": [
+  {
+   "geometry": "moezx@xroiyDfDeIrBsBfCgC|AbCnJ`O~OvMd@^bKnI`BlA|BbBTNzBzAlBnA|QdKlt@~`@ji@bZzc@jVxS`L\\P~C`BrDpBlJbF~F~ClPrIx[`PbD`BdDfBrQxJdKvFlMdHrBhA`EpBlSxKtF`DtDjB|UjMbq@j]`GxJdCrFRb@nB`HnArJI|IS|SWjSc@j_@j@nKUl_@sGdsAoEtrAsBhk@mDby@yNb|DY`Q`AzU`CdOdG`T|KpVvNpPvI|GbQbKfMtE~LrCzLhAx`@hCzW`Blg@jB|b@vBxYhBdI`@tMz@ji@tDhRpAvYxApRhAtL~@~Kx@|Q}Ab}@bOht@tRrb@dLbk@lQr]rMfT|I|ZvMpH~Cja@jSzCbBlIxE|GrD`X|NrLrGbQrJpVbNf@X`lAlp@bXvNfh@|Xfa@bUdnBpeAta@xTbRhK|]|RjMhHlPzHvu@t`@|n@n\\`i@zZjNlH|FzClGbD`{@vc@nJlFvUnKhbAth@pIjEvz@`c@b^`SzAz@tKdGlXjOr|@tf@pjBhdAnTtLvVbNfw@jc@ftA`v@nQrJB@jh@~XfYnOtOvInDfBtKnFh@XlOtIxFjDbWtNxPxJHDj[vQnV|NvRxKxi@lZrb@pUpOlIdgCvyAn^tRlPzHzK~EpKpEfLlE|QzHzT~IzT~KrUbJvnAjc@t[`K~OfEbMxC`p@vLla@hIdHpA`d@bJzYlG|bAtWtl@rOzSzF|]rIlFvAvI|Bvn@lPlyAz`@bL|C~uAt^b~@~UvgAbZhKtC^J|LhDlOnEtLtD~PlFrAb@rA`@jNjEjm@hUbE|ApQrFzVxGfJdCva@zKvWbHjI|AzRrDlPzBtBTdHx@rP|AxMr@~Sp@|TV|WDjA?bPm@jI[xJ{@br@iHvm@qFbXiCxq@kHzoB}V|zBoYjx@gKxAQtTkCna@cFp{@iKnOiB~UcBx^kClL_@fMKlIBrIAdVl@jOz@hJx@|OzApOxBbJ|BjCn@rQdExMzDnO~DlV|IxTbLbKpFba@dT`e@dTjZ`PTLd{@tc@zj@`Y`yAjt@pn@`]@@|lAdp@fOxHtJ`FlFhC`LrFpEvBz@b@bFdCpbAvf@PHj{Abv@|^zQtqAzo@@@@@dvAlr@rl@tY@@@?zBfAfzCvyAt}@pc@nExBfj@dXfDlBje@~W|UfSlaAth@tZhMzTfJrhAtj@dD`Bzy@vb@rQtKlQxNzJ`NpI|Q|DbOhCbQbAxK?DD`@RrOo@zOeBdQ_DzMyFdRcOxXmCbFyLjToYdh@uPt]kOd[{JzUaHxPkOpa@kFzNgHxRu^`hAoQhp@qPzc@c\\z|@gPna@sUbh@kX`i@k\\dk@yKfRu|A|kCol@ncA_LpRcHtLCDc[ji@wN|SSXiXbr@qHtTyDjNm@|BgFhUuE|U_E~TgDlXqBfYsAjZo@nWKp[NlYFzJ~@nbBe@`k@GzHObKgCjhBaBfjAkAzx@qAv|@kBz\\mDfb@uFrh@yBpNCPyDxVkJne@aMxg@aEnMsHvUuAlEkj@dvAwWpq@akAf{CuCrHaZnv@yq@jgBwH~]kHvW_GzXmFd]cDx`@aA~\\CdYb@n[f@lJv@vNvDr^jC~P`ArGtDpSxQxbAlDnSbE~XdCjRd@jDfRzqBhBlQbC|UrBjS|Ad\\P|TB|DS|WqCre@kCbZEd@uKfYmD~KkU~n@cTbj@mG`PwTvo@ADyBnGcHnX}ElYsEz[qA|q@VxLnBzm@rEbhAzAzb@hA|WjCpo@tAn]|B~j@PzCTbEb@|Rh@p]k@lPUzGzBFbEJpUl@rGN`DZfMpAJH|CdCjBr@rFfBzIhDj_@bTzd@rWHD~JzF`^zSvV~MzStL~ChBvCrAz@h@vAz@dl@|\\zIhFnVxNfVpNjA~@bMbHd]hS~A~@ld@pWrSnLn@^|@f@tC`BHF^RrAv@va@vUp\\jRhBbAvBrA|sAdy@j^fSn[~P~CdBlIfEd]lQ|NxHpGhDrDvB~VdNfN~GxDvBd`@pTrC|AlBcGz@_Cnu@csBpM_^vN{}@dW_`BoPqJ{QmQqOkJuOqOkYqU",
+   "distance": 24368.1,
+   "duration": 1255.142,
+   "weight": 2263.323,
+   "weight_name": "auto",
+   "duration_typical": 1302.54,
+   "weight_typical": 2290.649,
+   "legs": [
+    {
+     "steps": [
+      {
+       "geometry": "moezx@xroiyDfDeIrBsBfCgC",
+       "mode": "driving",
+       "driving_side": "right",
+       "distance": 36.804,
+       "duration": 9.444,
+       "weight": 341.444,
+       "duration_typical": 9.463,
+       "weight_typical": 341.444,
+       "name": "",
+       "maneuver": {
+        "location": [
+         -97.689917,
+         30.330119
+        ],
+        "bearing_before": 0,
+        "bearing_after": 121,
+        "instruction": "Drive southeast.",
+        "type": "depart"
+       },
+       "bannerInstructions": [
+        {
+         "distanceAlongGeometry": 36.804,
+         "primary": {
+          "text": "Cameron Road",
+          "type": "turn",
+          "modifier": "right",
+          "components": [
+           {
+            "text": "Cameron Road",
+            "type": "text"
+           }
+          ]
+         }
+        }
+       ],
+       "voiceInstructions": [
+        {
+         "distanceAlongGeometry": 36.804,
+         "announcement": "Drive southeast. Then Turn right onto Cameron Road.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Drive southeast. Then Turn right onto <say-as interpret-as=\"address\">Cameron Road</say-as>.</prosody></amazon:effect></speak>"
+        }
+       ]
+      },
+      {
+       "geometry": "ibezx@v`oiyD|AbCnJ`O~OvMd@^bKnI`BlA|BbBTNzBzAlBnA|QdKlt@~`@ji@bZzc@jVxS`L\\P~C`BrDpBlJbF~F~ClPrIx[`PbD`BdDfBrQxJdKvFlMdHrBhA`EpBlSxKtF`DtDjB|UjMbq@j]",
+       "mode": "driving",
+       "driving_side": "right",
+       "distance": 993.445,
+       "duration": 109.437,
+       "weight": 123.255,
+       "duration_typical": 120.78,
+       "weight_typical": 125.552,
+       "name": "Cameron Road",
+       "maneuver": {
+        "location": [
+         -97.689628,
+         30.329909
+        ],
+        "bearing_before": 139,
+        "bearing_after": 230,
+        "modifier": "right",
+        "instruction": "Turn right onto Cameron Road.",
+        "type": "end of road"
+       },
+       "bannerInstructions": [
+        {
+         "distanceAlongGeometry": 993.445,
+         "primary": {
+          "text": "East US Highway 290",
+          "type": "turn",
+          "modifier": "right",
+          "components": [
+           {
+            "text": "East US Highway 290",
+            "type": "text"
+           }
+          ]
+         }
+        },
+        {
+         "distanceAlongGeometry": 402.336,
+         "primary": {
+          "text": "East US Highway 290",
+          "type": "turn",
+          "modifier": "right",
+          "components": [
+           {
+            "text": "East US Highway 290",
+            "type": "text"
+           }
+          ]
+         },
+         "sub": {
+          "text": "I 35 South",
+          "type": "turn",
+          "modifier": "slight left",
+          "components": [
+           {
+            "text": "I 35",
+            "type": "icon",
+            "imageBaseURL": "https://api.mapbox.com/public/shields/v4.1/US/i-35",
+            "mapbox_shield": {
+             "base_url": "https://api.mapbox.com/styles/v1",
+             "display_ref": "35",
+             "name": "us-interstate",
+             "text_color": "white"
+            }
+           },
+           {
+            "text": "South",
+            "type": "text"
+           }
+          ]
+         }
+        }
+       ],
+       "voiceInstructions": [
+        {
+         "distanceAlongGeometry": 974.778,
+         "announcement": "Continue for a half mile.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Continue for a half mile.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 402.336,
+         "announcement": "In a quarter mile, Turn right onto East U.S. Highway 2 90.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">In a quarter mile, Turn right onto <say-as interpret-as=\"address\">East U.S. Highway 2 90</say-as>.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 150.889,
+         "announcement": "Turn right onto East U.S. Highway 2 90. Then Take the Interstate 35 South ramp on the left.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Turn right onto <say-as interpret-as=\"address\">East U.S. Highway 2 90</say-as>. Then Take the <say-as interpret-as=\"address\">Interstate 35 South</say-as> ramp on the left.</prosody></amazon:effect></speak>"
+        }
+       ]
+      },
+      {
+       "geometry": "w`vyx@hbyiyD`GxJdCrFRb@nB`HnArJI|IS|SWjSc@j_@",
+       "mode": "driving",
+       "driving_side": "right",
+       "distance": 202.993,
+       "duration": 13.794,
+       "weight": 16.224,
+       "duration_typical": 13.601,
+       "weight_typical": 16.224,
+       "name": "East US Highway 290",
+       "maneuver": {
+        "location": [
+         -97.694773,
+         30.322204
+        ],
+        "bearing_before": 208,
+        "bearing_after": 272,
+        "modifier": "right",
+        "instruction": "Turn right onto East US Highway 290.",
+        "type": "turn"
+       },
+       "bannerInstructions": [
+        {
+         "distanceAlongGeometry": 202.993,
+         "primary": {
+          "text": "I 35 South",
+          "type": "turn",
+          "modifier": "slight left",
+          "components": [
+           {
+            "text": "I 35",
+            "type": "icon",
+            "imageBaseURL": "https://api.mapbox.com/public/shields/v4.1/US/i-35",
+            "mapbox_shield": {
+             "base_url": "https://api.mapbox.com/styles/v1",
+             "display_ref": "35",
+             "name": "us-interstate",
+             "text_color": "white"
+            }
+           },
+           {
+            "text": "South",
+            "type": "text"
+           }
+          ]
+         },
+         "sub": {
+          "text": "",
+          "components": [
+           {
+            "text": "",
+            "type": "lane",
+            "active": true,
+            "directions": [
+             "slight left",
+             "straight"
+            ],
+            "active_direction": "slight left"
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "straight"
+            ]
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "straight",
+             "right"
+            ]
+           }
+          ]
+         }
+        }
+       ],
+       "voiceInstructions": [
+        {
+         "distanceAlongGeometry": 152,
+         "announcement": "Take the Interstate 35 South ramp on the left.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Take the <say-as interpret-as=\"address\">Interstate 35 South</say-as> ramp on the left.</prosody></amazon:effect></speak>"
+        }
+       ]
+      },
+      {
+       "geometry": "upuyx@d`}iyDj@nKUl_@sGdsAoEtrAsBhk@mDby@yNb|DY`Q`AzU`CdOdG`T|KpVvNpPvI|GbQbKfMtE~LrCzLhAx`@hCzW`Blg@jB|b@vBxYhBdI`@tMz@ji@tDhRpAvYxApRhAtL~@~Kx@|Q}Ab}@bOht@tRrb@dLbk@lQr]rMfT|I|ZvMpH~Cja@jSzCbBlIxE|GrD`X|NrLrGbQrJpVbNf@X`lAlp@bXvNfh@|Xfa@bUdnBpeAta@xTbRhK|]|RjMhH",
+       "mode": "driving",
+       "driving_side": "right",
+       "distance": 3344.321,
+       "duration": 144.31,
+       "weight": 141.812,
+       "duration_typical": 147.905,
+       "weight_typical": 153.573,
+       "name": "Purple Heart Trail",
+       "ref": "I 35 South; US 290",
+       "maneuver": {
+        "location": [
+         -97.696787,
+         30.321947
+        ],
+        "bearing_before": 272,
+        "bearing_after": 263,
+        "modifier": "slight left",
+        "instruction": "Take the I 35 South ramp on the left.",
+        "type": "on ramp"
+       },
+       "destinations": "I 35 South, US 290 West",
+       "bannerInstructions": [
+        {
+         "distanceAlongGeometry": 3344.321,
+         "primary": {
+          "text": "32nd Street / Dean Keeton Street",
+          "type": "fork",
+          "modifier": "left",
+          "components": [
+           {
+            "text": "32nd Street",
+            "type": "text"
+           },
+           {
+            "text": "/",
+            "type": "text"
+           },
+           {
+            "text": "Dean Keeton Street",
+            "type": "text"
+           }
+          ]
+         },
+         "sub": {
+          "text": "",
+          "components": [
+           {
+            "text": "",
+            "type": "lane",
+            "active": true,
+            "directions": [
+             "slight left"
+            ],
+            "active_direction": "slight left"
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": true,
+            "directions": [
+             "slight left"
+            ],
+            "active_direction": "slight left"
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "slight right"
+            ]
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "slight right"
+            ]
+           }
+          ]
+         }
+        }
+       ],
+       "voiceInstructions": [
+        {
+         "distanceAlongGeometry": 3320.321,
+         "announcement": "In 2 miles, Keep left to stay on Interstate 35 South.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">In 2 miles, Keep left to stay on <say-as interpret-as=\"address\">Interstate 35 South</say-as>.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 804.672,
+         "announcement": "In a half mile, Keep left to stay on Interstate 35 South, U.S. 2 90 toward 32nd Street, Dean Keeton Street.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">In a half mile, Keep left to stay on <say-as interpret-as=\"address\">Interstate 35 South</say-as>, <say-as interpret-as=\"address\">U.S. 2 90</say-as> toward <say-as interpret-as=\"address\">32nd Street</say-as>, <say-as interpret-as=\"address\">Dean Keeton Street</say-as>.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 226,
+         "announcement": "Keep left to stay on Interstate 35 South.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Keep left to stay on <say-as interpret-as=\"address\">Interstate 35 South</say-as>.</prosody></amazon:effect></speak>"
+        }
+       ]
+      },
+      {
+       "geometry": "seoxx@pu`kyDlPzHvu@t`@|n@n\\`i@zZjNlH|FzClGbD`{@vc@nJlFvUnKhbAth@pIjEvz@`c@b^`SzAz@tKdGlXjOr|@tf@pjBhdAnTtLvVbNfw@jc@ftA`v@nQrJB@jh@~XfYnOtOvInDfBtKnFh@XlOtIxFjDbWtNxPxJHDj[vQnV|NvRxKxi@lZrb@pUpOlIdgCvyAn^tRlPzHzK~EpKpEfLlE|QzHzT~IzT~KrUbJvnAjc@t[`K~OfEbMxC`p@vLla@hIdHpA`d@bJzYlG|bAtWtl@rOzSzF|]rIlFvAvI|Bvn@lPlyAz`@bL|C~uAt^b~@~UvgAbZhKtC^J|LhDlOnEtLtD~PlFrAb@rA`@jNjEjm@hUbE|ApQrFzVxGfJdCva@zKvWbHjI|AzRrDlPzBtBTdHx@rP|AxMr@~Sp@|TV|WDjA?bPm@jI[xJ{@br@iHvm@qFbXiCxq@kHzoB}V|zBoYjx@gKxAQtTkCna@cFp{@iKnOiB~UcBx^kClL_@fMKlIBrIAdVl@jOz@hJx@|OzApOxBbJ|BjCn@rQdExMzDnO~DlV|IxTbLbKpFba@dT`e@dTjZ`PTLd{@tc@zj@`Y`yAjt@pn@`]@@|lAdp@fOxHtJ`FlFhC`LrFpEvBz@b@bFdCpbAvf@PHj{Abv@|^zQtqAzo@@@@@dvAlr@rl@tY@@@?zBfAfzCvyAt}@pc@nExBfj@dXfDlBje@~W",
+       "mode": "driving",
+       "driving_side": "right",
+       "distance": 9613.597,
+       "duration": 370.374,
+       "weight": 372.966,
+       "duration_typical": 381.02,
+       "weight_typical": 382.019,
+       "name": "Purple Heart Trail",
+       "ref": "I 35 South; US 290",
+       "maneuver": {
+        "location": [
+         -97.715049,
+         30.302314
+        ],
+        "bearing_before": 209,
+        "bearing_after": 206,
+        "modifier": "slight left",
+        "instruction": "Keep left to stay on I 35 South/US 290/Purple Heart Trail toward 32nd Street/Dean Keeton Street.",
+        "type": "fork"
+       },
+       "destinations": "32nd Street, Dean Keeton Street",
+       "bannerInstructions": [
+        {
+         "distanceAlongGeometry": 9613.597,
+         "primary": {
+          "text": "Exit 230 TX 71 West / US 290 West",
+          "type": "off ramp",
+          "modifier": "right",
+          "components": [
+           {
+            "text": "Exit",
+            "type": "exit"
+           },
+           {
+            "text": "230",
+            "type": "exit-number"
+           },
+           {
+            "text": "TX 71",
+            "type": "icon",
+            "imageBaseURL": "https://api.mapbox.com/public/shields/v4.1/US/tx-71",
+            "mapbox_shield": {
+             "base_url": "https://api.mapbox.com/styles/v1",
+             "display_ref": "71",
+             "name": "circle-white",
+             "text_color": "black"
+            }
+           },
+           {
+            "text": "West",
+            "type": "text"
+           },
+           {
+            "text": "/",
+            "type": "delimiter"
+           },
+           {
+            "text": "US 290",
+            "type": "icon",
+            "imageBaseURL": "https://api.mapbox.com/public/shields/v4.1/US/us-290",
+            "mapbox_shield": {
+             "base_url": "https://api.mapbox.com/styles/v1",
+             "display_ref": "290",
+             "name": "us-highway",
+             "text_color": "black"
+            }
+           },
+           {
+            "text": "West",
+            "type": "text"
+           }
+          ]
+         },
+         "secondary": {
+          "text": "Johnson City",
+          "type": "off ramp",
+          "modifier": "right",
+          "components": [
+           {
+            "text": "Johnson City",
+            "type": "text"
+           }
+          ]
+         }
+        },
+        {
+         "distanceAlongGeometry": 1609.344,
+         "primary": {
+          "text": "Exit 230 TX 71 West / US 290 West",
+          "type": "off ramp",
+          "modifier": "right",
+          "components": [
+           {
+            "text": "Exit",
+            "type": "exit"
+           },
+           {
+            "text": "230",
+            "type": "exit-number"
+           },
+           {
+            "text": "TX 71",
+            "type": "icon",
+            "imageBaseURL": "https://api.mapbox.com/public/shields/v4.1/US/tx-71",
+            "mapbox_shield": {
+             "base_url": "https://api.mapbox.com/styles/v1",
+             "display_ref": "71",
+             "name": "circle-white",
+             "text_color": "black"
+            }
+           },
+           {
+            "text": "West",
+            "type": "text"
+           },
+           {
+            "text": "/",
+            "type": "delimiter"
+           },
+           {
+            "text": "US 290",
+            "type": "icon",
+            "imageBaseURL": "https://api.mapbox.com/public/shields/v4.1/US/us-290",
+            "mapbox_shield": {
+             "base_url": "https://api.mapbox.com/styles/v1",
+             "display_ref": "290",
+             "name": "us-highway",
+             "text_color": "black"
+            }
+           },
+           {
+            "text": "West",
+            "type": "text"
+           }
+          ]
+         },
+         "secondary": {
+          "text": "Johnson City",
+          "type": "off ramp",
+          "modifier": "right",
+          "components": [
+           {
+            "text": "Johnson City",
+            "type": "text"
+           }
+          ]
+         },
+         "sub": {
+          "text": "",
+          "components": [
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "straight"
+            ]
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "straight"
+            ]
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "straight"
+            ]
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "straight",
+             "slight right"
+            ]
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": true,
+            "directions": [
+             "slight right"
+            ],
+            "active_direction": "slight right"
+           }
+          ]
+         }
+        }
+       ],
+       "voiceInstructions": [
+        {
+         "distanceAlongGeometry": 9575.93,
+         "announcement": "Continue for 6 miles.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Continue for 6 miles.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 1609.344,
+         "announcement": "In 1 mile, Take exit 2 30.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">In 1 mile, Take exit <say-as interpret-as=\"address\">2 30</say-as>.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 804.672,
+         "announcement": "In a half mile, Take exit 2 30 onto Texas 71 West, U.S. 2 90 West toward Johnson City.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">In a half mile, Take exit <say-as interpret-as=\"address\">2 30</say-as> onto <say-as interpret-as=\"address\">Texas 71 West</say-as>, <say-as interpret-as=\"address\">U.S. 2 90 West</say-as> toward <say-as interpret-as=\"address\">Johnson City</say-as>.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 150.889,
+         "announcement": "Take exit 2 30.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Take exit <say-as interpret-as=\"address\">2 30</say-as>.</prosody></amazon:effect></speak>"
+        }
+       ]
+      },
+      {
+       "geometry": "sftsx@bq`myD|UfSlaAth@tZhMzTfJrhAtj@dD`Bzy@vb@",
+       "mode": "driving",
+       "driving_side": "right",
+       "distance": 558.8,
+       "duration": 22.344,
+       "weight": 22.726,
+       "duration_typical": 22.609,
+       "weight_typical": 24.153,
+       "name": "",
+       "ref": "US 290",
+       "maneuver": {
+        "location": [
+         -97.747746,
+         30.22297
+        ],
+        "bearing_before": 209,
+        "bearing_after": 217,
+        "modifier": "slight right",
+        "instruction": "Take exit 230 onto TX 71 West/US 290 West toward Johnson City.",
+        "type": "off ramp"
+       },
+       "destinations": "TX 71 West, US 290 West: Johnson City, Bastrop",
+       "exits": "230",
+       "bannerInstructions": [
+        {
+         "distanceAlongGeometry": 558.8,
+         "primary": {
+          "text": "US 290 West / TX 71 West",
+          "type": "fork",
+          "modifier": "right",
+          "components": [
+           {
+            "text": "US 290",
+            "type": "icon",
+            "imageBaseURL": "https://api.mapbox.com/public/shields/v4.1/US/us-290",
+            "mapbox_shield": {
+             "base_url": "https://api.mapbox.com/styles/v1",
+             "display_ref": "290",
+             "name": "us-highway",
+             "text_color": "black"
+            }
+           },
+           {
+            "text": "West",
+            "type": "text"
+           },
+           {
+            "text": "/",
+            "type": "delimiter"
+           },
+           {
+            "text": "TX 71",
+            "type": "icon",
+            "imageBaseURL": "https://api.mapbox.com/public/shields/v4.1/US/tx-71",
+            "mapbox_shield": {
+             "base_url": "https://api.mapbox.com/styles/v1",
+             "display_ref": "71",
+             "name": "circle-white",
+             "text_color": "black"
+            }
+           },
+           {
+            "text": "West",
+            "type": "text"
+           }
+          ]
+         },
+         "secondary": {
+          "text": "Johnson City",
+          "type": "fork",
+          "modifier": "right",
+          "components": [
+           {
+            "text": "Johnson City",
+            "type": "text"
+           }
+          ]
+         },
+         "sub": {
+          "text": "",
+          "components": [
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "straight"
+            ]
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": true,
+            "directions": [
+             "slight right"
+            ],
+            "active_direction": "slight right"
+           }
+          ]
+         }
+        }
+       ],
+       "voiceInstructions": [
+        {
+         "distanceAlongGeometry": 526.466,
+         "announcement": "In a quarter mile, Keep right to take U.S. 2 90 West, Texas 71 West toward Johnson City.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">In a quarter mile, Keep right to take <say-as interpret-as=\"address\">U.S. 2 90 West</say-as>, <say-as interpret-as=\"address\">Texas 71 West</say-as> toward <say-as interpret-as=\"address\">Johnson City</say-as>.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 238.556,
+         "announcement": "Keep right to take U.S. 2 90 West.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Keep right to take <say-as interpret-as=\"address\">U.S. 2 90 West</say-as>.</prosody></amazon:effect></speak>"
+        }
+       ]
+      },
+      {
+       "geometry": "_rksx@b{emyDrQtKlQxNzJ`NpI|Q|DbOhCbQbAxK?DD`@RrOo@zOeBdQ_DzMyFdRcOxXmCbFyLjToYdh@uPt]kOd[{JzUaHxPkOpa@kFzNgHxRu^`hAoQhp@qPzc@c\\z|@gPna@sUbh@kX`i@k\\dk@yKfRu|A|kCol@ncA_LpRcHtLCDc[ji@wN|SSXiXbr@qHtTyDjNm@|BgFhUuE|U_E~TgDlXqBfYsAjZo@nWKp[NlYFzJ~@nbBe@`k@GzHObKgCjhBaBfjAkAzx@qAv|@kBz\\mDfb@uFrh@yBpNCPyDxVkJne@aMxg@aEnMsHvUuAlEkj@dvAwWpq@akAf{CuCrHaZnv@yq@jgB",
+       "mode": "driving",
+       "driving_side": "right",
+       "distance": 4674.351,
+       "duration": 170.004,
+       "weight": 174.273,
+       "duration_typical": 172.51,
+       "weight_typical": 175.799,
+       "name": "",
+       "ref": "US 290; TX 71",
+       "maneuver": {
+        "location": [
+         -97.750466,
+         30.218544
+        ],
+        "bearing_before": 208,
+        "bearing_after": 210,
+        "modifier": "slight right",
+        "instruction": "Keep right to take US 290 West/TX 71 West toward Johnson City.",
+        "type": "fork"
+       },
+       "destinations": "US 290 West, TX 71 West: Johnson City",
+       "bannerInstructions": [
+        {
+         "distanceAlongGeometry": 4674.351,
+         "primary": {
+          "text": "US 290 / TX 71",
+          "type": "fork",
+          "modifier": "left",
+          "components": [
+           {
+            "text": "US 290",
+            "type": "icon",
+            "imageBaseURL": "https://api.mapbox.com/public/shields/v4.1/US/us-290",
+            "mapbox_shield": {
+             "base_url": "https://api.mapbox.com/styles/v1",
+             "display_ref": "290",
+             "name": "us-highway",
+             "text_color": "black"
+            }
+           },
+           {
+            "text": "/",
+            "type": "delimiter"
+           },
+           {
+            "text": "TX 71",
+            "type": "icon",
+            "imageBaseURL": "https://api.mapbox.com/public/shields/v4.1/US/tx-71",
+            "mapbox_shield": {
+             "base_url": "https://api.mapbox.com/styles/v1",
+             "display_ref": "71",
+             "name": "circle-white",
+             "text_color": "black"
+            }
+           }
+          ]
+         },
+         "secondary": {
+          "text": "Johnson City / Llano",
+          "type": "fork",
+          "modifier": "left",
+          "components": [
+           {
+            "text": "Johnson City",
+            "type": "text"
+           },
+           {
+            "text": "/",
+            "type": "text"
+           },
+           {
+            "text": "Llano",
+            "type": "text"
+           }
+          ]
+         }
+        },
+        {
+         "distanceAlongGeometry": 1609.344,
+         "primary": {
+          "text": "US 290 / TX 71",
+          "type": "fork",
+          "modifier": "left",
+          "components": [
+           {
+            "text": "US 290",
+            "type": "icon",
+            "imageBaseURL": "https://api.mapbox.com/public/shields/v4.1/US/us-290",
+            "mapbox_shield": {
+             "base_url": "https://api.mapbox.com/styles/v1",
+             "display_ref": "290",
+             "name": "us-highway",
+             "text_color": "black"
+            }
+           },
+           {
+            "text": "/",
+            "type": "delimiter"
+           },
+           {
+            "text": "TX 71",
+            "type": "icon",
+            "imageBaseURL": "https://api.mapbox.com/public/shields/v4.1/US/tx-71",
+            "mapbox_shield": {
+             "base_url": "https://api.mapbox.com/styles/v1",
+             "display_ref": "71",
+             "name": "circle-white",
+             "text_color": "black"
+            }
+           }
+          ]
+         },
+         "secondary": {
+          "text": "Johnson City / Llano",
+          "type": "fork",
+          "modifier": "left",
+          "components": [
+           {
+            "text": "Johnson City",
+            "type": "text"
+           },
+           {
+            "text": "/",
+            "type": "text"
+           },
+           {
+            "text": "Llano",
+            "type": "text"
+           }
+          ]
+         },
+         "sub": {
+          "text": "",
+          "components": [
+           {
+            "text": "",
+            "type": "lane",
+            "active": true,
+            "directions": [
+             "straight"
+            ],
+            "active_direction": "straight"
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": true,
+            "directions": [
+             "straight"
+            ],
+            "active_direction": "straight"
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": true,
+            "directions": [
+             "straight",
+             "slight right"
+            ],
+            "active_direction": "straight"
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "slight right"
+            ]
+           }
+          ]
+         }
+        }
+       ],
+       "voiceInstructions": [
+        {
+         "distanceAlongGeometry": 4644.684,
+         "announcement": "Continue for 3 miles.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Continue for 3 miles.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 1609.344,
+         "announcement": "In 1 mile, Keep left to stay on U.S. 2 90.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">In 1 mile, Keep left to stay on <say-as interpret-as=\"address\">U.S. 2 90</say-as>.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 804.672,
+         "announcement": "In a half mile, Keep left to stay on U.S. 2 90, Texas 71 toward Johnson City, Llano.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">In a half mile, Keep left to stay on <say-as interpret-as=\"address\">U.S. 2 90</say-as>, <say-as interpret-as=\"address\">Texas 71</say-as> toward <say-as interpret-as=\"address\">Johnson City</say-as>, <say-as interpret-as=\"address\">Llano</say-as>.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 221.667,
+         "announcement": "Keep left to stay on U.S. 2 90.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Keep left to stay on <say-as interpret-as=\"address\">U.S. 2 90</say-as>.</prosody></amazon:effect></speak>"
+        }
+       ]
+      },
+      {
+       "geometry": "qigtx@`gzoyDwH~]kHvW_GzXmFd]cDx`@aA~\\CdYb@n[f@lJv@vNvDr^jC~P`ArGtDpSxQxbAlDnSbE~XdCjRd@jDfRzqBhBlQbC|UrBjS|Ad\\P|TB|DS|WqCre@kCbZEd@",
+       "mode": "driving",
+       "driving_side": "right",
+       "distance": 1265.273,
+       "duration": 47.029,
+       "weight": 45.314,
+       "duration_typical": 44.544,
+       "weight_typical": 44.644,
+       "name": "",
+       "ref": "US 290; TX 71",
+       "maneuver": {
+        "location": [
+         -97.793665,
+         30.232745
+        ],
+        "bearing_before": 299,
+        "bearing_after": 290,
+        "modifier": "slight left",
+        "instruction": "Keep left to stay on US 290/TX 71 toward Johnson City/Llano.",
+        "type": "fork"
+       },
+       "destinations": "US 290, TX 71: Johnson City, Llano",
+       "bannerInstructions": [
+        {
+         "distanceAlongGeometry": 1265.273,
+         "primary": {
+          "text": "Loop 1 North",
+          "type": "off ramp",
+          "modifier": "right",
+          "components": [
+           {
+            "text": "Loop 1",
+            "type": "icon",
+            "imageBaseURL": "https://api.mapbox.com/public/shields/v4.1/US/loop-1",
+            "mapbox_shield": {
+             "base_url": "https://api.mapbox.com/styles/v1",
+             "display_ref": "Loop 1",
+             "name": "default",
+             "text_color": "black"
+            }
+           },
+           {
+            "text": "North",
+            "type": "text"
+           }
+          ]
+         },
+         "secondary": {
+          "text": "Brodie Lane / Southwest Parkway",
+          "type": "off ramp",
+          "modifier": "right",
+          "components": [
+           {
+            "text": "Brodie Lane",
+            "type": "text"
+           },
+           {
+            "text": "/",
+            "type": "text"
+           },
+           {
+            "text": "Southwest Parkway",
+            "type": "text"
+           }
+          ]
+         },
+         "sub": {
+          "text": "",
+          "components": [
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "straight"
+            ]
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "straight"
+            ]
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "straight"
+            ]
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": true,
+            "directions": [
+             "slight right"
+            ],
+            "active_direction": "slight right"
+           }
+          ]
+         }
+        }
+       ],
+       "voiceInstructions": [
+        {
+         "distanceAlongGeometry": 1230.273,
+         "announcement": "In 1 mile, Take the Loop 1 North exit.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">In 1 mile, Take the <say-as interpret-as=\"address\">Loop 1 North</say-as> exit.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 804.672,
+         "announcement": "In a half mile, Take the Loop 1 North exit toward Brodie Lane, Southwest Parkway.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">In a half mile, Take the <say-as interpret-as=\"address\">Loop 1 North</say-as> exit toward <say-as interpret-as=\"address\">Brodie Lane</say-as>, <say-as interpret-as=\"address\">Southwest Parkway</say-as>.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 186.667,
+         "announcement": "Take the Loop 1 North exit.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Take the <say-as interpret-as=\"address\">Loop 1 North</say-as> exit.</prosody></amazon:effect></speak>"
+        }
+       ]
+      },
+      {
+       "geometry": "oaftx@~gspyDuKfYmD~KkU~n@cTbj@mG`PwTvo@ADyBnGcHnX}ElYsEz[qA|q@VxLnBzm@rEbhAzAzb@hA|WjCpo@tAn]|B~j@PzCTbEb@|Rh@p]k@lPUzG",
+       "mode": "driving",
+       "driving_side": "right",
+       "distance": 1194.781,
+       "duration": 73.184,
+       "weight": 83.986,
+       "duration_typical": 70.737,
+       "weight_typical": 85.918,
+       "name": "West US 290 Frontage Road",
+       "maneuver": {
+        "location": [
+         -97.80648,
+         30.232104
+        ],
+        "bearing_before": 281,
+        "bearing_after": 299,
+        "modifier": "slight right",
+        "instruction": "Take the Loop 1 North exit toward Brodie Lane/Southwest Parkway.",
+        "type": "off ramp"
+       },
+       "destinations": "Loop 1 North: Brodie Lane, Southwest Parkway",
+       "bannerInstructions": [
+        {
+         "distanceAlongGeometry": 1194.781,
+         "primary": {
+          "text": "Brodie Lane",
+          "type": "turn",
+          "modifier": "left",
+          "components": [
+           {
+            "text": "Brodie Lane",
+            "type": "text"
+           }
+          ]
+         },
+         "sub": {
+          "text": "",
+          "components": [
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "left"
+            ]
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": true,
+            "directions": [
+             "left",
+             "straight"
+            ],
+            "active_direction": "left"
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "straight",
+             "right"
+            ]
+           }
+          ]
+         }
+        }
+       ],
+       "voiceInstructions": [
+        {
+         "distanceAlongGeometry": 1159.781,
+         "announcement": "In a half mile, Turn left onto Brodie Lane.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">In a half mile, Turn left onto <say-as interpret-as=\"address\">Brodie Lane</say-as>.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 120,
+         "announcement": "Turn left onto Brodie Lane.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Turn left onto <say-as interpret-as=\"address\">Brodie Lane</say-as>.</prosody></amazon:effect></speak>"
+        }
+       ]
+      },
+      {
+       "geometry": "w}htx@bnjqyDzBFbEJpUl@rGN`DZfMpAJH|CdCjBr@rFfBzIhDj_@bTzd@rWHD~JzF`^zSvV~MzStL~ChBvCrAz@h@vAz@dl@|\\zIhFnVxNfVpNjA~@bMbHd]hS~A~@ld@pWrSnLn@^|@f@tC`BHF^RrAv@va@vUp\\jRhBbAvBrA|sAdy@j^fSn[~P~CdBlIfEd]lQ|NxHpGhDrDvB~VdNfN~GxDvBd`@pTrC|A",
+       "mode": "driving",
+       "driving_side": "right",
+       "distance": 1737.214,
+       "duration": 141.335,
+       "weight": 167.576,
+       "duration_typical": 164.599,
+       "weight_typical": 167.576,
+       "name": "Brodie Lane",
+       "maneuver": {
+        "location": [
+         -97.818354,
+         30.23358
+        ],
+        "bearing_before": 275,
+        "bearing_after": 183,
+        "modifier": "left",
+        "instruction": "Turn left onto Brodie Lane.",
+        "type": "turn"
+       },
+       "bannerInstructions": [
+        {
+         "distanceAlongGeometry": 1737.214,
+         "primary": {
+          "text": "Oakdale Drive",
+          "type": "turn",
+          "modifier": "left",
+          "components": [
+           {
+            "text": "Oakdale Drive",
+            "type": "text"
+           }
+          ]
+         }
+        },
+        {
+         "distanceAlongGeometry": 402.336,
+         "primary": {
+          "text": "Oakdale Drive",
+          "type": "turn",
+          "modifier": "left",
+          "components": [
+           {
+            "text": "Oakdale Drive",
+            "type": "text"
+           }
+          ]
+         },
+         "sub": {
+          "text": "",
+          "components": [
+           {
+            "text": "",
+            "type": "lane",
+            "active": true,
+            "directions": [
+             "left"
+            ],
+            "active_direction": "left"
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "straight"
+            ]
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "straight",
+             "right"
+            ]
+           }
+          ]
+         }
+        }
+       ],
+       "voiceInstructions": [
+        {
+         "distanceAlongGeometry": 1715.88,
+         "announcement": "Continue for 1 mile.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Continue for 1 mile.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 402.336,
+         "announcement": "In a quarter mile, Turn left onto Oakdale Drive.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">In a quarter mile, Turn left onto <say-as interpret-as=\"address\">Oakdale Drive</say-as>.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 106.667,
+         "announcement": "Turn left onto Oakdale Drive.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Turn left onto <say-as interpret-as=\"address\">Oakdale Drive</say-as>.</prosody></amazon:effect></speak>"
+        }
+       ]
+      },
+      {
+       "geometry": "_dnsx@zyzqyDlBcGz@_Cnu@csBpM_^vN{}@dW_`B",
+       "mode": "driving",
+       "driving_side": "right",
+       "distance": 534.755,
+       "duration": 82.858,
+       "weight": 100.218,
+       "duration_typical": 87.767,
+       "weight_typical": 100.218,
+       "name": "Oakdale Drive",
+       "maneuver": {
+        "location": [
+         -97.826734,
+         30.219856
+        ],
+        "bearing_before": 209,
+        "bearing_after": 118,
+        "modifier": "left",
+        "instruction": "Turn left onto Oakdale Drive.",
+        "type": "turn"
+       },
+       "bannerInstructions": [
+        {
+         "distanceAlongGeometry": 534.755,
+         "primary": {
+          "text": "Turn left",
+          "type": "turn",
+          "modifier": "left",
+          "components": [
+           {
+            "text": "Turn left",
+            "type": "text"
+           }
+          ]
+         }
+        }
+       ],
+       "voiceInstructions": [
+        {
+         "distanceAlongGeometry": 507.499,
+         "announcement": "In a quarter mile, Turn left.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">In a quarter mile, Turn left.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 49.333,
+         "announcement": "Turn left.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Turn left.</prosody></amazon:effect></speak>"
+        }
+       ]
+      },
+      {
+       "geometry": "uqjsx@vzpqyDoPqJ{QmQqOkJuOqOkYqU",
+       "mode": "driving",
+       "driving_side": "right",
+       "distance": 211.764,
+       "duration": 71.029,
+       "weight": 673.529,
+       "duration_typical": 67.006,
+       "weight_typical": 673.529,
+       "name": "",
+       "maneuver": {
+        "location": [
+         -97.821628,
+         30.218027
+        ],
+        "bearing_before": 106,
+        "bearing_after": 30,
+        "modifier": "left",
+        "instruction": "Turn left.",
+        "type": "turn"
+       },
+       "bannerInstructions": [
+        {
+         "distanceAlongGeometry": 211.764,
+         "primary": {
+          "text": "You will arrive at your destination",
+          "type": "arrive",
+          "modifier": "straight",
+          "components": [
+           {
+            "text": "You will arrive at your destination",
+            "type": "text"
+           }
+          ]
+         }
+        },
+        {
+         "distanceAlongGeometry": 13.889,
+         "primary": {
+          "text": "You have arrived at your destination",
+          "type": "arrive",
+          "modifier": "straight",
+          "components": [
+           {
+            "text": "You have arrived at your destination",
+            "type": "text"
+           }
+          ]
+         }
+        }
+       ],
+       "voiceInstructions": [
+        {
+         "distanceAlongGeometry": 208.43,
+         "announcement": "Continue for 700 feet.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Continue for 700 feet.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 91.44,
+         "announcement": "In 300 feet, You will arrive at your destination.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">In 300 feet, You will arrive at your destination.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 13.889,
+         "announcement": "You have arrived at your destination.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">You have arrived at your destination.</prosody></amazon:effect></speak>"
+        }
+       ]
+      },
+      {
+       "geometry": "uqmsx@fjnqyD??",
+       "mode": "driving",
+       "driving_side": "right",
+       "distance": 0,
+       "duration": 0,
+       "weight": 0,
+       "duration_typical": 0,
+       "weight_typical": 0,
+       "name": "",
+       "maneuver": {
+        "location": [
+         -97.82034,
+         30.219563
+        ],
+        "bearing_before": 36,
+        "bearing_after": 0,
+        "instruction": "You have arrived at your destination.",
+        "type": "arrive"
+       },
+       "bannerInstructions": [],
+       "voiceInstructions": []
+      }
+     ],
+     "summary": "US 290, I 35 South",
+     "distance": 24368.1,
+     "duration": 1255.142,
+     "weight": 2263.323,
+     "duration_typical": 1302.54,
+     "weight_typical": 2290.649,
+     "via_waypoints": []
+    }
+   ],
+   "voiceLocale": "en-US"
+  }
+ ],
+ "uuid": "5rHb0gwrb0KptqfkeuUlTJxGHrEXRkm7dnaIOXUe3FPI1PY68tLWEg=="
+}

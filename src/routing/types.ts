@@ -71,14 +71,56 @@ export interface AtlasManeuver {
 // Steps, legs, routes
 // ---------------------------------------------------------------------------
 
+/**
+ * A cue to deliver before a maneuver.
+ *
+ * Providers express timing as "distance still to run in this step", not as
+ * "distance from the step's start" — the difference is the entire maneuver,
+ * and getting it backwards announces every turn at the wrong moment. The name
+ * here states the meaning so it cannot be misread at the call site.
+ */
+export interface AtlasGuidanceCue {
+  /** Deliver when this many metres of the step remain. */
+  readonly atRemainingMeters: number;
+}
+
+/**
+ * Spoken guidance, preserved verbatim from the provider.
+ *
+ * Kept because it is genuinely hard to author well — "In a quarter mile, turn
+ * left onto Trinity Street" is phrased, unit-aware, and pronunciation-aware in
+ * a way a template over raw fields is not. Phase 4's voice layer consumes this
+ * rather than regenerating it, so nothing here is speculative: it is data
+ * already in the response that would be lost if not mapped.
+ */
+export interface AtlasVoiceCue extends AtlasGuidanceCue {
+  readonly text: string;
+  /** SSML form where the provider supplied one, for better prosody. */
+  readonly ssml: string | null;
+}
+
+/** On-screen guidance text for the maneuver banner. */
+export interface AtlasBannerCue extends AtlasGuidanceCue {
+  readonly primary: string;
+  readonly secondary: string | null;
+  /** Lane or exit detail, where the provider supplied it. */
+  readonly detail: string | null;
+}
+
 export interface AtlasRouteStep {
   readonly maneuver: AtlasManeuver;
   /** The road being driven for this step. `null` for unnamed roads. */
   readonly roadName: string | null;
+  /** Road number or shield text, e.g. "US 290". `null` when unknown. */
+  readonly roadRef: string | null;
   /** Where this step leads — the sign you would read. `null` when unknown. */
   readonly towards: string | null;
   readonly distanceMeters: number;
   readonly durationSeconds: number;
+  /** Spoken cues for this step, earliest first. Empty is legitimate. */
+  readonly voice: readonly AtlasVoiceCue[];
+  /** Banner cues for this step, earliest first. Empty is legitimate. */
+  readonly banner: readonly AtlasBannerCue[];
   /**
    * Half-open index range into `AtlasRoute.geometry` covering this step.
    *
@@ -128,6 +170,8 @@ export interface AtlasRoute {
   readonly cumulative: readonly number[];
   readonly legs: readonly AtlasRouteLeg[];
   readonly bounds: AtlasRouteBounds;
+  /** BCP-47 locale the spoken cues are written in, when the provider said. */
+  readonly voiceLocale: string | null;
   /** Provider id that produced this route, for diagnostics. */
   readonly provider: string;
   /** Epoch ms the route was requested. Traffic estimates go stale. */
@@ -178,6 +222,13 @@ export type RouteFailure =
   | "timeout"
   /** The response arrived but did not match the provider's contract. */
   | "malformed-response"
+  /**
+   * The caller aborted. Not an error and never worth showing — a destination
+   * changed mid-flight is the normal case. Modelled explicitly rather than
+   * returned as an empty success, because "no routes" and "we stopped asking"
+   * are different facts and one of them would read as "no route exists".
+   */
+  | "cancelled"
   | "error";
 
 export type RouteOutcome =

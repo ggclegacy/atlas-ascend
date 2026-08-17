@@ -1,0 +1,728 @@
+{
+ "code": "Ok",
+ "waypoints": [
+  {
+   "location": [
+    -97.743127,
+    30.267215
+   ],
+   "name": "Congress Avenue",
+   "distance": 3.087,
+   "time_zone": {
+    "offset": "-05:00",
+    "identifier": "America/Chicago",
+    "abbreviation": "CDT"
+   }
+  },
+  {
+   "location": [
+    -97.733544,
+    30.287185
+   ],
+   "name": "San Jacinto Boulevard",
+   "distance": 42.69,
+   "time_zone": {
+    "offset": "-05:00",
+    "identifier": "America/Chicago",
+    "abbreviation": "CDT"
+   }
+  }
+ ],
+ "routes": [
+  {
+   "geometry": "}sjvx@lpwlyD}MqDyHuBiUkGoEmAwCw@{m@oPcEiAoDaAan@mPyC_AuDiAin@iPcD}@}DiAgn@uOsEiAaD{@mVuG_UcGwF{AxAaIn@kDTqA|AqI|AmIrIge@v@qEdHw_@tAoH|CuPdA}Ft@{Dl@eDbCwM`@yB`G_\\|@mEkDu@iZ}I}UkHiGeBqBi@sFwA_Cq@gXyHCA{a@oLICeBg@mc@qKsPaECAqBe@c@KsUiGgEmAaCo@aSeFuBi@oEgAm@SeBk@aAY{DiA}EsA}C{@wAg@sCu@}PoEiEiAmh@aNEAyEoACA_@IaCm@mCw@yDiA{P}EiLgDeA[gFuA}B_Am@W}CoBgBmAqAgAuFgEgAk@y@WwCw@uCw@k@OgEmAsMuDsEkAgE{@oN_DsDcAyDyAsDqC{CqDkCmEuG{JyDyFmFyFiEiDcEuC{DaB{G{BiI{AuBUiBSgDKuACeB?kDNgCRmDh@oFlAyEjAcGvBqErBoFvC}E|CuJpHyDrB_EfBWL{E|AuB`@gCh@gD\\o@F_FReC?qBGwCQcQwBq@Iq@IC?kYmDuAQ{JoAmFo@gUuCiBUgBUiFm@{BWw@KwAOmFo@qAO_I}@sKcAsKg@od@OiJEuAAsCAuCBkAB",
+   "distance": 2822.939,
+   "duration": 581.879,
+   "weight": 509.364,
+   "weight_name": "auto",
+   "duration_typical": 508.613,
+   "weight_typical": 527.228,
+   "legs": [
+    {
+     "steps": [
+      {
+       "geometry": "}sjvx@lpwlyD}MqDyHuBiUkGoEmAwCw@{m@oPcEiAoDaAan@mPyC_AuDiAin@iPcD}@}DiAgn@uOsEiAaD{@mVuG_UcGwF{A",
+       "mode": "driving",
+       "driving_side": "right",
+       "distance": 644.867,
+       "duration": 159.752,
+       "weight": 117.318,
+       "duration_typical": 115.171,
+       "weight_typical": 107.782,
+       "name": "Congress Avenue",
+       "maneuver": {
+        "location": [
+         -97.743127,
+         30.267215
+        ],
+        "bearing_before": 0,
+        "bearing_after": 18,
+        "instruction": "Drive north on Congress Avenue.",
+        "type": "depart"
+       },
+       "bannerInstructions": [
+        {
+         "distanceAlongGeometry": 644.867,
+         "primary": {
+          "text": "East 11th Street",
+          "type": "turn",
+          "modifier": "right",
+          "components": [
+           {
+            "text": "East 11th Street",
+            "type": "text"
+           }
+          ]
+         }
+        },
+        {
+         "distanceAlongGeometry": 402.336,
+         "primary": {
+          "text": "East 11th Street",
+          "type": "turn",
+          "modifier": "right",
+          "components": [
+           {
+            "text": "East 11th Street",
+            "type": "text"
+           }
+          ]
+         },
+         "sub": {
+          "text": "",
+          "components": [
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "left"
+            ]
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": true,
+            "directions": [
+             "right"
+            ],
+            "active_direction": "right"
+           }
+          ]
+         }
+        }
+       ],
+       "voiceInstructions": [
+        {
+         "distanceAlongGeometry": 644.867,
+         "announcement": "Drive north on Congress Avenue for a half mile.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Drive north on <say-as interpret-as=\"address\">Congress Avenue</say-as> for a half mile.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 402.336,
+         "announcement": "In a quarter mile, Turn right onto East 11th Street.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">In a quarter mile, Turn right onto <say-as interpret-as=\"address\">East 11th Street</say-as>.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 71.111,
+         "announcement": "Turn right onto East 11th Street.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Turn right onto <say-as interpret-as=\"address\">East 11th Street</say-as>.</prosody></amazon:effect></speak>"
+        }
+       ]
+      },
+      {
+       "geometry": "yluvx@zpslyDxAaIn@kDTqA|AqI|AmIrIge@v@qEdHw_@tAoH|CuPdA}Ft@{Dl@eDbCwM`@yB`G_\\|@mE",
+       "mode": "driving",
+       "driving_side": "right",
+       "distance": 350.434,
+       "duration": 80.45,
+       "weight": 70.861,
+       "duration_typical": 70.511,
+       "weight_typical": 70.861,
+       "name": "East 11th Street",
+       "maneuver": {
+        "location": [
+         -97.741086,
+         30.272733
+        ],
+        "bearing_before": 18,
+        "bearing_after": 108,
+        "modifier": "right",
+        "instruction": "Turn right onto East 11th Street.",
+        "type": "end of road"
+       },
+       "bannerInstructions": [
+        {
+         "distanceAlongGeometry": 350.434,
+         "primary": {
+          "text": "Trinity Street",
+          "type": "turn",
+          "modifier": "left",
+          "components": [
+           {
+            "text": "Trinity Street",
+            "type": "text"
+           }
+          ]
+         },
+         "sub": {
+          "text": "",
+          "components": [
+           {
+            "text": "",
+            "type": "lane",
+            "active": true,
+            "directions": [
+             "left"
+            ],
+            "active_direction": "left"
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "straight"
+            ]
+           }
+          ]
+         }
+        }
+       ],
+       "voiceInstructions": [
+        {
+         "distanceAlongGeometry": 334.434,
+         "announcement": "In a quarter mile, Turn left onto Trinity Street.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">In a quarter mile, Turn left onto <say-as interpret-as=\"address\">Trinity Street</say-as>.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 80,
+         "announcement": "Turn left onto Trinity Street.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Turn left onto <say-as interpret-as=\"address\">Trinity Street</say-as>.</prosody></amazon:effect></speak>"
+        }
+       ]
+      },
+      {
+       "geometry": "gpsvx@bxllyDkDu@iZ}I}UkHiGeBqBi@sFwA_Cq@gXyHCA{a@oLICeBg@mc@qKsPaECAqBe@c@KsUiGgEmAaCo@aSeFuBi@oEgAm@SeBk@aAY{DiA}EsA}C{@wAg@sCu@}PoEiEiAmh@aNEAyEoACA_@IaCm@mCw@yDiA{P}EiLgDeA[gFuA}B_Am@W}CoBgBmAqAgAuFgEgAk@y@WwCw@uCw@k@OgEmAsMuDsEkAgE{@oN_DsDcAyDyAsDqC{CqDkCmEuG{JyDyFmFyFiEiDcEuC{DaB{G{BiI{AuBUiBSgDKuACeB?kDNgCRmDh@oFlAyEjAcGvBqErBoFvC}E|CuJpHyDrB_EfBWL{E|AuB`@gCh@gD\\o@F_FReC?qBGwCQcQwBq@Iq@IC?kYmDuAQ{JoAmFo@gUuCiBUgBUiFm@{BWw@KwAOmFo@qAO_I}@sKcAsKg@od@OiJEuAAsCAuCBkAB",
+       "mode": "driving",
+       "driving_side": "right",
+       "distance": 1827.638,
+       "duration": 341.678,
+       "weight": 321.186,
+       "duration_typical": 322.931,
+       "weight_typical": 348.585,
+       "name": "Trinity Street",
+       "maneuver": {
+        "location": [
+         -97.737618,
+         30.271764
+        ],
+        "bearing_before": 109,
+        "bearing_after": 15,
+        "modifier": "left",
+        "instruction": "Turn left onto Trinity Street.",
+        "type": "turn"
+       },
+       "bannerInstructions": [
+        {
+         "distanceAlongGeometry": 1827.638,
+         "primary": {
+          "text": "Your destination will be on the right",
+          "type": "arrive",
+          "modifier": "right",
+          "components": [
+           {
+            "text": "Your destination will be on the right",
+            "type": "text"
+           }
+          ]
+         }
+        },
+        {
+         "distanceAlongGeometry": 33.333,
+         "primary": {
+          "text": "Your destination is on the right",
+          "type": "arrive",
+          "modifier": "right",
+          "components": [
+           {
+            "text": "Your destination is on the right",
+            "type": "text"
+           }
+          ]
+         }
+        }
+       ],
+       "voiceInstructions": [
+        {
+         "distanceAlongGeometry": 1814.304,
+         "announcement": "Continue for 1 mile.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Continue for 1 mile.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 402.336,
+         "announcement": "In a quarter mile, Your destination will be on the right.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">In a quarter mile, Your destination will be on the right.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 33.333,
+         "announcement": "Your destination is on the right.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Your destination is on the right.</prosody></amazon:effect></speak>"
+        }
+       ]
+      },
+      {
+       "geometry": "atqwx@nydlyD??",
+       "mode": "driving",
+       "driving_side": "right",
+       "distance": 0,
+       "duration": 0,
+       "weight": 0,
+       "duration_typical": 0,
+       "weight_typical": 0,
+       "name": "Trinity Street",
+       "maneuver": {
+        "location": [
+         -97.733544,
+         30.287185
+        ],
+        "bearing_before": 358,
+        "bearing_after": 0,
+        "modifier": "right",
+        "instruction": "Your destination is on the right.",
+        "type": "arrive"
+       },
+       "bannerInstructions": [],
+       "voiceInstructions": []
+      }
+     ],
+     "summary": "Trinity Street, San Jacinto Boulevard",
+     "distance": 2822.939,
+     "duration": 581.879,
+     "weight": 509.364,
+     "duration_typical": 508.613,
+     "weight_typical": 527.228,
+     "via_waypoints": []
+    }
+   ],
+   "voiceLocale": "en-US"
+  },
+  {
+   "geometry": "}sjvx@lpwlyD}MqDyHuBiUkGoEmAwCw@{m@oPcEiAoDaAan@mPyC_AuDiAin@iPcD}@}DiAgn@uOsEiAaD{@mVuG_UcGwF{AmBhKQfAQ|@}Fj[eGd\\aA~EuB`MwCxOY~AsCvO{CnPmD_AiD{@wGiBqGaBeFuAyDeAi@OyA_@sN{DoBg@cCk@sEsAwBo@sI{BEAeBc@aQoEsXgH}Bg@oCs@aEcAwUqGwWeHqCw@cCo@}WeHiQwEcAYgBc@oBg@r@wEbD}PxE}V`C}Lh@oCv@aEzAaIhL{m@P{@|AaIdAcGvAeHJi@dAcG`H}_@bAyFBMF_@f@mCnBiKt@mEl@aDhNav@z@uEv@gEd@gCdGw\\d@kCnCeOr@qDoEgAm@SeBk@aAY{DiA}EsA}C{@wAg@sCu@}PoEiEiAmh@aNEAyEoACA_@IaCm@mCw@yDiA{P}EiLgDeA[gFuA}B_Am@W}CoBgBmAqAgAuFgEgAk@y@WwCw@uCw@k@OgEmAsMuDsEkAgE{@oN_DsDcAyDyAsDqC{CqDkCmEuG{JyDyFmFyFiEiDcEuC{DaB{G{BiI{AuBUiBSgDKuACeB?kDNgCRmDh@oFlAyEjAcGvBqErBoFvC}E|CuJpHyDrB_EfBWL{E|AuB`@gCh@gD\\o@F_FReC?qBGwCQcQwBq@Iq@IC?kYmDuAQ{JoAmFo@gUuCiBUgBUiFm@{BWw@KwAOmFo@qAO_I}@sKcAsKg@od@OiJEuAAsCAuCBkAB",
+   "distance": 3308.406,
+   "duration": 611.424,
+   "weight": 546.373,
+   "weight_name": "auto",
+   "duration_typical": 572.859,
+   "weight_typical": 572.974,
+   "legs": [
+    {
+     "steps": [
+      {
+       "geometry": "}sjvx@lpwlyD}MqDyHuBiUkGoEmAwCw@{m@oPcEiAoDaAan@mPyC_AuDiAin@iPcD}@}DiAgn@uOsEiAaD{@mVuG_UcGwF{A",
+       "mode": "driving",
+       "driving_side": "right",
+       "distance": 644.867,
+       "duration": 162.789,
+       "weight": 117.318,
+       "duration_typical": 115.171,
+       "weight_typical": 107.782,
+       "name": "Congress Avenue",
+       "maneuver": {
+        "location": [
+         -97.743127,
+         30.267215
+        ],
+        "bearing_before": 0,
+        "bearing_after": 18,
+        "instruction": "Drive north on Congress Avenue.",
+        "type": "depart"
+       },
+       "bannerInstructions": [
+        {
+         "distanceAlongGeometry": 644.867,
+         "primary": {
+          "text": "West 11th Street",
+          "type": "turn",
+          "modifier": "left",
+          "components": [
+           {
+            "text": "West 11th Street",
+            "type": "text"
+           }
+          ]
+         }
+        },
+        {
+         "distanceAlongGeometry": 402.336,
+         "primary": {
+          "text": "West 11th Street",
+          "type": "turn",
+          "modifier": "left",
+          "components": [
+           {
+            "text": "West 11th Street",
+            "type": "text"
+           }
+          ]
+         },
+         "sub": {
+          "text": "",
+          "components": [
+           {
+            "text": "",
+            "type": "lane",
+            "active": true,
+            "directions": [
+             "left"
+            ],
+            "active_direction": "left"
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "right"
+            ]
+           }
+          ]
+         }
+        }
+       ],
+       "voiceInstructions": [
+        {
+         "distanceAlongGeometry": 644.867,
+         "announcement": "Drive north on Congress Avenue for a half mile.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Drive north on <say-as interpret-as=\"address\">Congress Avenue</say-as> for a half mile.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 402.336,
+         "announcement": "In a quarter mile, Turn left onto West 11th Street.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">In a quarter mile, Turn left onto <say-as interpret-as=\"address\">West 11th Street</say-as>.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 71.111,
+         "announcement": "Turn left onto West 11th Street.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Turn left onto <say-as interpret-as=\"address\">West 11th Street</say-as>.</prosody></amazon:effect></speak>"
+        }
+       ]
+      },
+      {
+       "geometry": "yluvx@zpslyDmBhKQfAQ|@}Fj[eGd\\aA~EuB`MwCxOY~AsCvO{CnP",
+       "mode": "driving",
+       "driving_side": "right",
+       "distance": 241.103,
+       "duration": 38.855,
+       "weight": 41.655,
+       "duration_typical": 46.72,
+       "weight_typical": 41.655,
+       "name": "West 11th Street",
+       "maneuver": {
+        "location": [
+         -97.741086,
+         30.272733
+        ],
+        "bearing_before": 18,
+        "bearing_after": 288,
+        "modifier": "left",
+        "instruction": "Turn left onto West 11th Street.",
+        "type": "end of road"
+       },
+       "bannerInstructions": [
+        {
+         "distanceAlongGeometry": 241.103,
+         "primary": {
+          "text": "Lavaca Street",
+          "type": "turn",
+          "modifier": "right",
+          "components": [
+           {
+            "text": "Lavaca Street",
+            "type": "text"
+           }
+          ]
+         },
+         "sub": {
+          "text": "",
+          "components": [
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "straight"
+            ]
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": true,
+            "directions": [
+             "right"
+            ],
+            "active_direction": "right"
+           }
+          ]
+         }
+        }
+       ],
+       "voiceInstructions": [
+        {
+         "distanceAlongGeometry": 225.103,
+         "announcement": "In 800 feet, Turn right onto Lavaca Street.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">In 800 feet, Turn right onto <say-as interpret-as=\"address\">Lavaca Street</say-as>.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 80,
+         "announcement": "Turn right onto Lavaca Street.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Turn right onto <say-as interpret-as=\"address\">Lavaca Street</say-as>.</prosody></amazon:effect></speak>"
+        }
+       ]
+      },
+      {
+       "geometry": "ivvvx@`fxlyDmD_AiD{@wGiBqGaBeFuAyDeAi@OyA_@sN{DoBg@cCk@sEsAwBo@sI{BEAeBc@aQoEsXgH}Bg@oCs@aEcAwUqGwWeHqCw@cCo@}WeHiQwEcAYgBc@oBg@",
+       "mode": "driving",
+       "driving_side": "right",
+       "distance": 484.542,
+       "duration": 83.322,
+       "weight": 73.018,
+       "duration_typical": 90.797,
+       "weight_typical": 86.036,
+       "name": "Lavaca Street",
+       "maneuver": {
+        "location": [
+         -97.743473,
+         30.273397
+        ],
+        "bearing_before": 288,
+        "bearing_after": 18,
+        "modifier": "right",
+        "instruction": "Turn right onto Lavaca Street.",
+        "type": "turn"
+       },
+       "bannerInstructions": [
+        {
+         "distanceAlongGeometry": 484.542,
+         "primary": {
+          "text": "West 15th Street",
+          "type": "turn",
+          "modifier": "right",
+          "components": [
+           {
+            "text": "West 15th Street",
+            "type": "text"
+           }
+          ]
+         }
+        }
+       ],
+       "voiceInstructions": [
+        {
+         "distanceAlongGeometry": 468.542,
+         "announcement": "In a quarter mile, Turn right onto West 15th Street.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">In a quarter mile, Turn right onto <say-as interpret-as=\"address\">West 15th Street</say-as>.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 85.333,
+         "announcement": "Turn right onto West 15th Street.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Turn right onto <say-as interpret-as=\"address\">West 15th Street</say-as>.</prosody></amazon:effect></speak>"
+        }
+       ]
+      },
+      {
+       "geometry": "sy~vx@zfulyDr@wEbD}PxE}V`C}Lh@oCv@aEzAaIhL{m@P{@|AaIdAcGvAeHJi@dAcG`H}_@bAyFBMF_@f@mCnBiKt@mEl@aDhNav@z@uEv@gEd@gCdGw\\d@kCnCeOr@qD",
+       "mode": "driving",
+       "driving_side": "right",
+       "distance": 594.021,
+       "duration": 74.779,
+       "weight": 60.663,
+       "duration_typical": 67.821,
+       "weight_typical": 59.581,
+       "name": "West 15th Street",
+       "maneuver": {
+        "location": [
+         -97.74195,
+         30.277546
+        ],
+        "bearing_before": 17,
+        "bearing_after": 106,
+        "modifier": "right",
+        "instruction": "Turn right onto West 15th Street.",
+        "type": "turn"
+       },
+       "bannerInstructions": [
+        {
+         "distanceAlongGeometry": 594.021,
+         "primary": {
+          "text": "Trinity Street",
+          "type": "turn",
+          "modifier": "left",
+          "components": [
+           {
+            "text": "Trinity Street",
+            "type": "text"
+           }
+          ]
+         },
+         "sub": {
+          "text": "",
+          "components": [
+           {
+            "text": "",
+            "type": "lane",
+            "active": true,
+            "directions": [
+             "left"
+            ],
+            "active_direction": "left"
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "straight"
+            ]
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "straight"
+            ]
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "straight"
+            ]
+           }
+          ]
+         }
+        }
+       ],
+       "voiceInstructions": [
+        {
+         "distanceAlongGeometry": 578.021,
+         "announcement": "In a quarter mile, Turn left onto Trinity Street.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">In a quarter mile, Turn left onto <say-as interpret-as=\"address\">Trinity Street</say-as>.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 80,
+         "announcement": "Turn left onto Trinity Street.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Turn left onto <say-as interpret-as=\"address\">Trinity Street</say-as>.</prosody></amazon:effect></speak>"
+        }
+       ]
+      },
+      {
+       "geometry": "ur{vx@pwilyDoEgAm@SeBk@aAY{DiA}EsA}C{@wAg@sCu@}PoEiEiAmh@aNEAyEoACA_@IaCm@mCw@yDiA{P}EiLgDeA[gFuA}B_Am@W}CoBgBmAqAgAuFgEgAk@y@WwCw@uCw@k@OgEmAsMuDsEkAgE{@oN_DsDcAyDyAsDqC{CqDkCmEuG{JyDyFmFyFiEiDcEuC{DaB{G{BiI{AuBUiBSgDKuACeB?kDNgCRmDh@oFlAyEjAcGvBqErBoFvC}E|CuJpHyDrB_EfBWL{E|AuB`@gCh@gD\\o@F_FReC?qBGwCQcQwBq@Iq@IC?kYmDuAQ{JoAmFo@gUuCiBUgBUiFm@{BWw@KwAOmFo@qAO_I}@sKcAsKg@od@OiJEuAAsCAuCBkAB",
+       "mode": "driving",
+       "driving_side": "right",
+       "distance": 1343.873,
+       "duration": 251.679,
+       "weight": 253.72,
+       "duration_typical": 252.35,
+       "weight_typical": 277.92,
+       "name": "Trinity Street",
+       "maneuver": {
+        "location": [
+         -97.736073,
+         30.275899
+        ],
+        "bearing_before": 109,
+        "bearing_after": 21,
+        "modifier": "left",
+        "instruction": "Turn left onto Trinity Street.",
+        "type": "turn"
+       },
+       "bannerInstructions": [
+        {
+         "distanceAlongGeometry": 1343.873,
+         "primary": {
+          "text": "Your destination will be on the right",
+          "type": "arrive",
+          "modifier": "right",
+          "components": [
+           {
+            "text": "Your destination will be on the right",
+            "type": "text"
+           }
+          ]
+         }
+        },
+        {
+         "distanceAlongGeometry": 33.333,
+         "primary": {
+          "text": "Your destination is on the right",
+          "type": "arrive",
+          "modifier": "right",
+          "components": [
+           {
+            "text": "Your destination is on the right",
+            "type": "text"
+           }
+          ]
+         }
+        }
+       ],
+       "voiceInstructions": [
+        {
+         "distanceAlongGeometry": 1318.456,
+         "announcement": "Continue for 1 mile.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Continue for 1 mile.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 402.336,
+         "announcement": "In a quarter mile, Your destination will be on the right.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">In a quarter mile, Your destination will be on the right.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 33.333,
+         "announcement": "Your destination is on the right.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Your destination is on the right.</prosody></amazon:effect></speak>"
+        }
+       ]
+      },
+      {
+       "geometry": "atqwx@nydlyD??",
+       "mode": "driving",
+       "driving_side": "right",
+       "distance": 0,
+       "duration": 0,
+       "weight": 0,
+       "duration_typical": 0,
+       "weight_typical": 0,
+       "name": "Trinity Street",
+       "maneuver": {
+        "location": [
+         -97.733544,
+         30.287185
+        ],
+        "bearing_before": 358,
+        "bearing_after": 0,
+        "modifier": "right",
+        "instruction": "Your destination is on the right.",
+        "type": "arrive"
+       },
+       "bannerInstructions": [],
+       "voiceInstructions": []
+      }
+     ],
+     "summary": "Congress Avenue, San Jacinto Boulevard",
+     "distance": 3308.406,
+     "duration": 611.424,
+     "weight": 546.373,
+     "duration_typical": 572.859,
+     "weight_typical": 572.974,
+     "via_waypoints": []
+    }
+   ],
+   "voiceLocale": "en-US"
+  }
+ ],
+ "uuid": "R2ZejH0Q82YNrFANgLe5a2tdHJle1LRggVHpxuLjzL7D6827ljCiVQ=="
+}

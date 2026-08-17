@@ -1,0 +1,1013 @@
+{
+ "code": "Ok",
+ "waypoints": [
+  {
+   "location": [
+    -0.141755,
+    51.500528
+   ],
+   "name": "Ambassador's Court",
+   "distance": 55.218,
+   "time_zone": {
+    "offset": "+01:00",
+    "identifier": "Europe/London",
+    "abbreviation": "BST"
+   }
+  },
+  {
+   "location": [
+    -0.159981,
+    51.514954
+   ],
+   "name": "",
+   "distance": 5.3,
+   "time_zone": {
+    "offset": "+01:00",
+    "identifier": "Europe/London",
+    "abbreviation": "BST"
+   }
+  }
+ ],
+ "routes": [
+  {
+   "geometry": "_~ifaBtzsGA{ALwA^kAl@w@|OeQ|@aArC}CUq@i@}Ak@_D]iBa@{F}JeA}_@_NsCmA}GkDs@Y_CWgCo@uEcCwWoTeCGaCPsCjAiB|AeBnB}@tB]bAg@zA{@tD]jEObFF~Ep@nV\\fN@vNIfOAd@E|CIfGyAnn@mM|zJ~AbDQtZ]xNKnK`BzCnD`Oh@|BDNhEnQh@~B`@bB|BrJfE~Pf@|EZdDFjDMzEMhDWdCy@bDkBnCmAvA{A`BqAbA{BrAiWzKeGfCmAkAc@WsDmA{CeBsA_AqBmAw@wH}AcNmBsPi@}EuAoE{@yAcAaA{@c@uAE_AHkATkBb@qUhFa@JyBtB}ArC}@nDs@lFuAhSC|@k@jCo@`BgB|AkCr@gBGwCm@}DyAyE}@]GqDo@uGmA_JcBmAO[EsEOiDMoHc@{A@_B@yCP_HxAsEv@mJzCcBt@iDjCqAlAwJ`JaA|@yC`DsLbP_EfFo~@pkAkDlE{UtZoDpEY^}C|EmWta@cC~DuAhCiBdDWf@}V`a@sK|Pu@lAmFpIkJnJsBtB_D`DoCnB{DlD}EjEwNnM_ExDmCzB}A`AsBjA{BvAg@PsC`AqNrGoJ~DoAf@wC`AuTnHwAd@uL~DeFbByC`AyA`Am@j@g@lAsAbDcArCk@bBQtAIpAHvFT`GX~FXfG`@tIxAdUl@nJdAxOv@zLJ~ATjEA`DU~COv@Up@m@fAu@jAuCpDyOvPeATsB?eB[qAg@uA{@y@y@yA}A{@oSSiFKuEq@iSKaCIiCeAcVu@wNoAuTqCu@Io@O_BQyBUyAKc@_@w@QQ]Ue@Uy@OQ@e@PwAh@wAj@kb@xP_Bp@aIvCsAh@u@ZqCdAaE|AwAj@eBn@qBv@yKfE^lDNrAf@xF",
+   "distance": 3178.645,
+   "duration": 672.584,
+   "weight": 1124.307,
+   "weight_name": "auto",
+   "duration_typical": 659.994,
+   "weight_typical": 1141.442,
+   "legs": [
+    {
+     "steps": [
+      {
+       "geometry": "_~ifaBtzsGA{ALwA^kAl@w@|OeQ|@aArC}C",
+       "mode": "driving",
+       "driving_side": "left",
+       "distance": 63.046,
+       "duration": 18.924,
+       "weight": 350.924,
+       "duration_typical": 18.931,
+       "weight_typical": 350.924,
+       "name": "Ambassador's Court",
+       "pronunciation": "am\u02c8bas\u0259d\u0259z k\u0254\u02d0t",
+       "maneuver": {
+        "location": [
+         -0.141755,
+         51.500528
+        ],
+        "bearing_before": 0,
+        "bearing_after": 120,
+        "instruction": "Drive southeast on Ambassador's Court.",
+        "type": "depart"
+       },
+       "bannerInstructions": [
+        {
+         "distanceAlongGeometry": 63.046,
+         "primary": {
+          "text": "Buckingham Gate / A3214",
+          "type": "turn",
+          "modifier": "left",
+          "components": [
+           {
+            "text": "Buckingham Gate",
+            "type": "text"
+           },
+           {
+            "text": "/",
+            "type": "delimiter"
+           },
+           {
+            "text": "A3214",
+            "type": "icon",
+            "mapbox_shield": {
+             "base_url": "https://api.mapbox.com/styles/v1",
+             "display_ref": "A3214",
+             "name": "rectangle-green",
+             "text_color": "yellow"
+            }
+           }
+          ]
+         },
+         "sub": {
+          "text": "Spur Road",
+          "type": "turn",
+          "modifier": "left",
+          "components": [
+           {
+            "text": "Spur Road",
+            "type": "text"
+           }
+          ]
+         }
+        }
+       ],
+       "voiceInstructions": [
+        {
+         "distanceAlongGeometry": 63.046,
+         "announcement": "Drive southeast on Ambassador's Court. Then Turn left onto Buckingham Gate.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Drive southeast on <phoneme alphabet=\"ipa\" ph=\"am\u02c8bas\u0259d\u0259z k\u0254\u02d0t\">Ambassador's Court</phoneme>. Then Turn left onto <phoneme alphabet=\"ipa\" ph=\"\u02ccb\u028ck\u026a\u014b\u0259m \u02c8\u0261e\u026at\">Buckingham Gate</phoneme>.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 27.917,
+         "announcement": "Turn left onto Buckingham Gate, A3214. Then Turn left.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Turn left onto <phoneme alphabet=\"ipa\" ph=\"\u02ccb\u028ck\u026a\u014b\u0259m \u02c8\u0261e\u026at\">Buckingham Gate</phoneme>, <say-as interpret-as=\"address\">A3214</say-as>. Then Turn left.</prosody></amazon:effect></speak>"
+        }
+       ]
+      },
+      {
+       "geometry": "ucifaBvwrGUq@i@}Ak@_D]iBa@{F",
+       "mode": "driving",
+       "driving_side": "left",
+       "distance": 25.16,
+       "duration": 7.668,
+       "weight": 16.048,
+       "duration_typical": 11.059,
+       "weight_typical": 16.048,
+       "name": "Buckingham Gate",
+       "ref": "A3214",
+       "pronunciation": "\u02ccb\u028ck\u026a\u014b\u0259m \u02c8\u0261e\u026at",
+       "maneuver": {
+        "location": [
+         -0.141196,
+         51.500107
+        ],
+        "bearing_before": 146,
+        "bearing_after": 55,
+        "modifier": "left",
+        "instruction": "Turn left onto Buckingham Gate/A3214.",
+        "type": "end of road"
+       },
+       "bannerInstructions": [
+        {
+         "distanceAlongGeometry": 25.16,
+         "primary": {
+          "text": "Spur Road",
+          "type": "turn",
+          "modifier": "left",
+          "components": [
+           {
+            "text": "Spur Road",
+            "type": "text"
+           }
+          ]
+         },
+         "sub": {
+          "text": "",
+          "components": [
+           {
+            "text": "",
+            "type": "lane",
+            "active": true,
+            "directions": [
+             "left"
+            ],
+            "active_direction": "left"
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "right"
+            ]
+           }
+          ]
+         }
+        }
+       ],
+       "voiceInstructions": [
+        {
+         "distanceAlongGeometry": 25.16,
+         "announcement": "Turn left onto Spur Road.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Turn left onto <phoneme alphabet=\"ipa\" ph=\"\u02ccsp\u025c\u02d0 \u02c8r\u0259\u028ad\">Spur Road</phoneme>.</prosody></amazon:effect></speak>"
+        }
+       ]
+      },
+      {
+       "geometry": "aiifaB`crG}JeA}_@_NsCmA}GkDs@Y_CWgCo@uEcCwWoTeCGaCPsCjAiB|AeBnB}@tB]bAg@zA{@tD]jEObFF~Ep@nV\\fN@vNIfOAd@E|CIfGyAnn@mM|zJ~AbDQtZ]xNKnK",
+       "mode": "driving",
+       "driving_side": "left",
+       "distance": 907.691,
+       "duration": 188.655,
+       "weight": 204.12,
+       "duration_typical": 182.56,
+       "weight_typical": 204.12,
+       "name": "Spur Road",
+       "pronunciation": "\u02ccsp\u025c\u02d0 \u02c8r\u0259\u028ad",
+       "maneuver": {
+        "location": [
+         -0.140865,
+         51.500193
+        ],
+        "bearing_before": 78,
+        "bearing_after": 7,
+        "modifier": "left",
+        "instruction": "Turn left onto Spur Road.",
+        "type": "turn"
+       },
+       "bannerInstructions": [
+        {
+         "distanceAlongGeometry": 907.691,
+         "primary": {
+          "text": "A4202 / Park Lane",
+          "type": "roundabout",
+          "modifier": "left",
+          "degrees": 307,
+          "driving_side": "left",
+          "components": [
+           {
+            "text": "A4202",
+            "type": "icon",
+            "mapbox_shield": {
+             "base_url": "https://api.mapbox.com/styles/v1",
+             "display_ref": "A4202",
+             "name": "rectangle-green",
+             "text_color": "yellow"
+            }
+           },
+           {
+            "text": "/",
+            "type": "delimiter"
+           },
+           {
+            "text": "Park Lane",
+            "type": "text"
+           }
+          ]
+         }
+        }
+       ],
+       "voiceInstructions": [
+        {
+         "distanceAlongGeometry": 897.024,
+         "announcement": "Continue for a half mile.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Continue for a half mile.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 402.336,
+         "announcement": "In a quarter mile, Enter Piccadilly and take the 4th exit onto A4202.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">In a quarter mile, Enter <phoneme alphabet=\"ipa\" ph=\"\u02ccp\u026ak\u0259\u02c8d\u026ali\">Piccadilly</phoneme> and take the 4th exit onto <say-as interpret-as=\"address\">A4202</say-as>.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 72.053,
+         "announcement": "Enter Piccadilly and take the 4th exit onto A4202, Park Lane.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Enter <phoneme alphabet=\"ipa\" ph=\"\u02ccp\u026ak\u0259\u02c8d\u026ali\">Piccadilly</phoneme> and take the 4th exit onto <say-as interpret-as=\"address\">A4202</say-as>, <phoneme alphabet=\"ipa\" ph=\"\u02ccp\u0251\u02d0k \u02c8le\u026an\">Park Lane</phoneme>.</prosody></amazon:effect></speak>"
+        }
+       ]
+      },
+      {
+       "geometry": "yumfaB`wcH`BzCnD`Oh@|BDNhEnQh@~B`@bB|BrJfE~Pf@|EZdDFjDMzEMhDWdCy@bDkBnCmAvA{A`BqAbA{BrAiWzKeGfCmAkAc@WsDmA{CeBsA_AqBmAw@wH}AcNmBsPi@}EuAoE{@yAcAaA{@c@uAE_AHkATkBb@qUhFa@JyBtB}ArC}@nDs@lFuAhSC|@",
+       "mode": "driving",
+       "driving_side": "left",
+       "distance": 476.732,
+       "duration": 89.226,
+       "weight": 95.468,
+       "duration_typical": 114.443,
+       "weight_typical": 120.316,
+       "name": "Park Lane",
+       "ref": "A4202",
+       "pronunciation": "\u02ccp\u0251\u02d0k \u02c8le\u026an",
+       "rotary_name": "Piccadilly",
+       "maneuver": {
+        "location": [
+         -0.149889,
+         51.502445
+        ],
+        "bearing_before": 273,
+        "bearing_after": 236,
+        "modifier": "slight left",
+        "instruction": "Enter Piccadilly and take the 4th exit onto A4202/Park Lane.",
+        "exit": 4,
+        "type": "rotary"
+       },
+       "bannerInstructions": [
+        {
+         "distanceAlongGeometry": 476.732,
+         "primary": {
+          "text": "A4202 / Park Lane",
+          "type": "turn",
+          "modifier": "right",
+          "components": [
+           {
+            "text": "A4202",
+            "type": "icon",
+            "mapbox_shield": {
+             "base_url": "https://api.mapbox.com/styles/v1",
+             "display_ref": "A4202",
+             "name": "rectangle-green",
+             "text_color": "yellow"
+            }
+           },
+           {
+            "text": "/",
+            "type": "delimiter"
+           },
+           {
+            "text": "Park Lane",
+            "type": "text"
+           }
+          ]
+         }
+        },
+        {
+         "distanceAlongGeometry": 139.129,
+         "primary": {
+          "text": "A4202 / Park Lane",
+          "type": "turn",
+          "modifier": "right",
+          "components": [
+           {
+            "text": "A4202",
+            "type": "icon",
+            "mapbox_shield": {
+             "base_url": "https://api.mapbox.com/styles/v1",
+             "display_ref": "A4202",
+             "name": "rectangle-green",
+             "text_color": "yellow"
+            }
+           },
+           {
+            "text": "/",
+            "type": "delimiter"
+           },
+           {
+            "text": "Park Lane",
+            "type": "text"
+           }
+          ]
+         },
+         "sub": {
+          "text": "",
+          "components": [
+           {
+            "text": "",
+            "type": "lane",
+            "active": true,
+            "directions": [
+             "straight"
+            ],
+            "active_direction": "straight"
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": true,
+            "directions": [
+             "straight"
+            ],
+            "active_direction": "straight"
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": true,
+            "directions": [
+             "straight"
+            ],
+            "active_direction": "straight"
+           }
+          ]
+         }
+        }
+       ],
+       "voiceInstructions": [
+        {
+         "distanceAlongGeometry": 128.462,
+         "announcement": "In 500 feet, Turn right onto A4202.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">In 500 feet, Turn right onto <say-as interpret-as=\"address\">A4202</say-as>.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 56.889,
+         "announcement": "Turn right onto A4202, Park Lane.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Turn right onto <say-as interpret-as=\"address\">A4202</say-as>, <phoneme alphabet=\"ipa\" ph=\"\u02ccp\u0251\u02d0k \u02c8le\u026an\">Park Lane</phoneme>.</prosody></amazon:effect></speak>"
+        }
+       ]
+      },
+      {
+       "geometry": "__qfaBzxgHk@jCo@`BgB|AkCr@gBGwCm@}DyAyE}@]GqDo@uGmA_JcBmAO[EsEOiDMoHc@{A@_B@yCP_HxAsEv@mJzCcBt@iDjCqAlA",
+       "mode": "driving",
+       "driving_side": "left",
+       "distance": 243.925,
+       "duration": 78.803,
+       "weight": 69.777,
+       "duration_typical": 72.241,
+       "weight_typical": 70.955,
+       "name": "Park Lane",
+       "ref": "A4202",
+       "pronunciation": "\u02ccp\u0251\u02d0k \u02c8le\u026an",
+       "maneuver": {
+        "location": [
+         -0.151966,
+         51.504128
+        ],
+        "bearing_before": 281,
+        "bearing_after": 3,
+        "modifier": "right",
+        "instruction": "Turn right onto A4202/Park Lane.",
+        "type": "turn"
+       },
+       "bannerInstructions": [
+        {
+         "distanceAlongGeometry": 243.925,
+         "primary": {
+          "text": "A4202 / Park Lane",
+          "type": "fork",
+          "modifier": "left",
+          "components": [
+           {
+            "text": "A4202",
+            "type": "icon",
+            "mapbox_shield": {
+             "base_url": "https://api.mapbox.com/styles/v1",
+             "display_ref": "A4202",
+             "name": "rectangle-green",
+             "text_color": "yellow"
+            }
+           },
+           {
+            "text": "/",
+            "type": "delimiter"
+           },
+           {
+            "text": "Park Lane",
+            "type": "text"
+           }
+          ]
+         },
+         "sub": {
+          "text": "",
+          "components": [
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "straight"
+            ]
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": true,
+            "directions": [
+             "straight"
+            ],
+            "active_direction": "straight"
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "right"
+            ]
+           }
+          ]
+         }
+        }
+       ],
+       "voiceInstructions": [
+        {
+         "distanceAlongGeometry": 208.865,
+         "announcement": "In 800 feet, Keep left to stay on A4202.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">In 800 feet, Keep left to stay on <say-as interpret-as=\"address\">A4202</say-as>.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 64,
+         "announcement": "Keep left to stay on A4202, Park Lane.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Keep left to stay on <say-as interpret-as=\"address\">A4202</say-as>, <phoneme alphabet=\"ipa\" ph=\"\u02ccp\u0251\u02d0k \u02c8le\u026an\">Park Lane</phoneme>.</prosody></amazon:effect></speak>"
+        }
+       ]
+      },
+      {
+       "geometry": "}aufaB~fhHwJ`JaA|@yC`DsLbP_EfFo~@pkAkDlE{UtZoDpEY^}C|EmWta@cC~DuAhCiBdDWf@}V`a@sK|Pu@lAmFpIkJnJsBtB_D`DoCnB{DlD}EjEwNnM_ExDmCzB}A`AsBjA{BvAg@PsC`AqNrGoJ~DoAf@wC`AuTnHwAd@uL~DeFbByC`AyA`Am@j@g@lAsAbDcArCk@bBQtAIpA",
+       "mode": "driving",
+       "driving_side": "left",
+       "distance": 861.625,
+       "duration": 143.842,
+       "weight": 143.56,
+       "duration_typical": 139.918,
+       "weight_typical": 141.664,
+       "name": "Park Lane",
+       "ref": "A4202",
+       "pronunciation": "\u02ccp\u0251\u02d0k \u02c8le\u026an",
+       "maneuver": {
+        "location": [
+         -0.152192,
+         51.506223
+        ],
+        "bearing_before": 335,
+        "bearing_after": 330,
+        "modifier": "slight left",
+        "instruction": "Keep left to stay on A4202/Park Lane.",
+        "type": "fork"
+       },
+       "bannerInstructions": [
+        {
+         "distanceAlongGeometry": 861.625,
+         "primary": {
+          "text": "A40 / Cumberland Gate",
+          "type": "turn",
+          "modifier": "slight left",
+          "components": [
+           {
+            "text": "A40",
+            "type": "icon",
+            "mapbox_shield": {
+             "base_url": "https://api.mapbox.com/styles/v1",
+             "display_ref": "A40",
+             "name": "rectangle-green",
+             "text_color": "yellow"
+            }
+           },
+           {
+            "text": "/",
+            "type": "delimiter"
+           },
+           {
+            "text": "Cumberland Gate",
+            "type": "text"
+           }
+          ]
+         }
+        },
+        {
+         "distanceAlongGeometry": 402.336,
+         "primary": {
+          "text": "A40 / Cumberland Gate",
+          "type": "turn",
+          "modifier": "slight left",
+          "components": [
+           {
+            "text": "A40",
+            "type": "icon",
+            "mapbox_shield": {
+             "base_url": "https://api.mapbox.com/styles/v1",
+             "display_ref": "A40",
+             "name": "rectangle-green",
+             "text_color": "yellow"
+            }
+           },
+           {
+            "text": "/",
+            "type": "delimiter"
+           },
+           {
+            "text": "Cumberland Gate",
+            "type": "text"
+           }
+          ]
+         },
+         "sub": {
+          "text": "",
+          "components": [
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "left"
+            ]
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": true,
+            "directions": [
+             "left"
+            ],
+            "active_direction": "left"
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "left"
+            ]
+           }
+          ]
+         }
+        }
+       ],
+       "voiceInstructions": [
+        {
+         "distanceAlongGeometry": 850.958,
+         "announcement": "Continue for a half mile.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Continue for a half mile.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 402.336,
+         "announcement": "In a quarter mile, Bear left onto A40.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">In a quarter mile, Bear left onto <say-as interpret-as=\"address\">A40</say-as>.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 56.889,
+         "announcement": "Bear left onto A40, Cumberland Gate.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Bear left onto <say-as interpret-as=\"address\">A40</say-as>, <phoneme alphabet=\"ipa\" ph=\"\u02cck\u028cmb\u0259l\u0259nd \u02c8\u0261e\u026at\">Cumberland Gate</phoneme>.</prosody></amazon:effect></speak>"
+        }
+       ]
+      },
+      {
+       "geometry": "}pagaBlhuHHvFT`GX~FXfG`@tIxAdUl@nJdAxOv@zLJ~ATjEA`DU~COv@Up@m@fAu@jAuCpDyOvP",
+       "mode": "driving",
+       "driving_side": "left",
+       "distance": 200.59,
+       "duration": 49.098,
+       "weight": 32.46,
+       "duration_typical": 32.388,
+       "weight_typical": 34.026,
+       "name": "Cumberland Gate",
+       "ref": "A40",
+       "pronunciation": "\u02cck\u028cmb\u0259l\u0259nd \u02c8\u0261e\u026at",
+       "maneuver": {
+        "location": [
+         -0.158871,
+         51.512607
+        ],
+        "bearing_before": 285,
+        "bearing_after": 264,
+        "modifier": "slight left",
+        "instruction": "Bear left onto A40/Cumberland Gate.",
+        "type": "turn"
+       },
+       "bannerInstructions": [
+        {
+         "distanceAlongGeometry": 200.59,
+         "primary": {
+          "text": "A40 / Cumberland Gate",
+          "type": "turn",
+          "modifier": "slight right",
+          "components": [
+           {
+            "text": "A40",
+            "type": "icon",
+            "mapbox_shield": {
+             "base_url": "https://api.mapbox.com/styles/v1",
+             "display_ref": "A40",
+             "name": "rectangle-green",
+             "text_color": "yellow"
+            }
+           },
+           {
+            "text": "/",
+            "type": "delimiter"
+           },
+           {
+            "text": "Cumberland Gate",
+            "type": "text"
+           }
+          ]
+         },
+         "sub": {
+          "text": "",
+          "components": [
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "straight"
+            ]
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": true,
+            "directions": [
+             "straight"
+            ],
+            "active_direction": "straight"
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "straight"
+            ]
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "straight"
+            ]
+           }
+          ]
+         }
+        }
+       ],
+       "voiceInstructions": [
+        {
+         "distanceAlongGeometry": 189.923,
+         "announcement": "In 700 feet, Bear right onto A40.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">In 700 feet, Bear right onto <say-as interpret-as=\"address\">A40</say-as>.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 56.889,
+         "announcement": "Bear right onto A40, Cumberland Gate.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Bear right onto <say-as interpret-as=\"address\">A40</say-as>, <phoneme alphabet=\"ipa\" ph=\"\u02cck\u028cmb\u0259l\u0259nd \u02c8\u0261e\u026at\">Cumberland Gate</phoneme>.</prosody></amazon:effect></speak>"
+        }
+       ]
+      },
+      {
+       "geometry": "q~agaBffzHeATsB?eB[qAg@uA{@y@y@yA}A{@oSSiFKuEq@iSKaCIiCeAcVu@wNoAuT",
+       "mode": "driving",
+       "driving_side": "left",
+       "distance": 174.686,
+       "duration": 38.421,
+       "weight": 36.581,
+       "duration_typical": 37.829,
+       "weight_typical": 37.824,
+       "name": "Cumberland Gate",
+       "ref": "A40",
+       "pronunciation": "\u02cck\u028cmb\u0259l\u0259nd \u02c8\u0261e\u026at",
+       "maneuver": {
+        "location": [
+         -0.161396,
+         51.512825
+        ],
+        "bearing_before": 327,
+        "bearing_after": 356,
+        "modifier": "slight right",
+        "instruction": "Bear right onto A40/Cumberland Gate. Continue on A40.",
+        "type": "turn"
+       },
+       "bannerInstructions": [
+        {
+         "distanceAlongGeometry": 174.686,
+         "primary": {
+          "text": "A40",
+          "type": "turn",
+          "modifier": "left",
+          "components": [
+           {
+            "text": "A40",
+            "type": "icon",
+            "mapbox_shield": {
+             "base_url": "https://api.mapbox.com/styles/v1",
+             "display_ref": "A40",
+             "name": "rectangle-green",
+             "text_color": "yellow"
+            }
+           }
+          ]
+         },
+         "sub": {
+          "text": "",
+          "components": [
+           {
+            "text": "",
+            "type": "lane",
+            "active": true,
+            "directions": [
+             "left"
+            ],
+            "active_direction": "left"
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "straight"
+            ]
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "right"
+            ]
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "right"
+            ]
+           },
+           {
+            "text": "",
+            "type": "lane",
+            "active": false,
+            "directions": [
+             "right"
+            ]
+           }
+          ]
+         }
+        }
+       ],
+       "voiceInstructions": [
+        {
+         "distanceAlongGeometry": 164.019,
+         "announcement": "In 600 feet, Turn left toward A40.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">In 600 feet, Turn left toward <say-as interpret-as=\"address\">A40</say-as>.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 54.222,
+         "announcement": "Turn left toward A40. Then Turn left.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Turn left toward <say-as interpret-as=\"address\">A40</say-as>. Then Turn left.</prosody></amazon:effect></speak>"
+        }
+       ]
+      },
+      {
+       "geometry": "}|bgaBlbvHqCu@Io@O_BQyBUyA",
+       "mode": "driving",
+       "driving_side": "left",
+       "distance": 21.227,
+       "duration": 5.819,
+       "weight": 23.458,
+       "duration_typical": 4.572,
+       "weight_typical": 22.495,
+       "name": "Marble Arch",
+       "pronunciation": "\u02ccm\u0251\u02d0b\u0259l \u02c8\u0251\u02d0t\u0283",
+       "maneuver": {
+        "location": [
+         -0.159287,
+         51.513311
+        ],
+        "bearing_before": 80,
+        "bearing_after": 22,
+        "modifier": "left",
+        "instruction": "Turn left toward A40.",
+        "type": "turn"
+       },
+       "destinations": "A40",
+       "bannerInstructions": [
+        {
+         "distanceAlongGeometry": 21.227,
+         "primary": {
+          "text": "Great Cumberland Place",
+          "type": "turn",
+          "modifier": "left",
+          "components": [
+           {
+            "text": "Great Cumberland Place",
+            "type": "text"
+           }
+          ]
+         }
+        }
+       ],
+       "voiceInstructions": [
+        {
+         "distanceAlongGeometry": 21.227,
+         "announcement": "Turn left onto Great Cumberland Place.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Turn left onto <phoneme alphabet=\"ipa\" ph=\"\u02cc\u0261re\u026at \u02cck\u028cmb\u0259l\u0259nd \u02c8ple\u026as\">Great Cumberland Place</phoneme>.</prosody></amazon:effect></speak>"
+        }
+       ]
+      },
+      {
+       "geometry": "qccgaBruuHKc@_@w@QQ]Ue@Uy@OQ@e@PwAh@wAj@kb@xP_Bp@aIvCsAh@u@ZqCdAaE|AwAj@eBn@qBv@yKfE",
+       "mode": "driving",
+       "driving_side": "left",
+       "distance": 185.704,
+       "duration": 39.983,
+       "weight": 66.265,
+       "duration_typical": 39.296,
+       "weight_typical": 57.426,
+       "name": "Great Cumberland Place",
+       "pronunciation": "\u02cc\u0261re\u026at \u02cck\u028cmb\u0259l\u0259nd \u02c8ple\u026as",
+       "maneuver": {
+        "location": [
+         -0.159082,
+         51.513417
+        ],
+        "bearing_before": 74,
+        "bearing_after": 356,
+        "modifier": "left",
+        "instruction": "Turn left onto Great Cumberland Place.",
+        "type": "end of road"
+       },
+       "bannerInstructions": [
+        {
+         "distanceAlongGeometry": 185.704,
+         "primary": {
+          "text": "Turn left",
+          "type": "turn",
+          "modifier": "left",
+          "components": [
+           {
+            "text": "Turn left",
+            "type": "text"
+           }
+          ]
+         }
+        }
+       ],
+       "voiceInstructions": [
+        {
+         "distanceAlongGeometry": 162.45,
+         "announcement": "In 600 feet, Turn left.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">In 600 feet, Turn left.</prosody></amazon:effect></speak>"
+        },
+        {
+         "distanceAlongGeometry": 62.222,
+         "announcement": "Turn left. Then Your destination will be on the right.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Turn left. Then Your destination will be on the right.</prosody></amazon:effect></speak>"
+        }
+       ]
+      },
+      {
+       "geometry": "kffgaB|}vH^lDNrAf@xF",
+       "mode": "driving",
+       "driving_side": "left",
+       "distance": 18.26,
+       "duration": 12.145,
+       "weight": 85.645,
+       "duration_typical": 6.758,
+       "weight_typical": 85.645,
+       "name": "",
+       "maneuver": {
+        "location": [
+         -0.159727,
+         51.514998
+        ],
+        "bearing_before": 343,
+        "bearing_after": 254,
+        "modifier": "left",
+        "instruction": "Turn left.",
+        "type": "turn"
+       },
+       "bannerInstructions": [
+        {
+         "distanceAlongGeometry": 18.26,
+         "primary": {
+          "text": "Your destination is on the right",
+          "type": "arrive",
+          "modifier": "right",
+          "components": [
+           {
+            "text": "Your destination is on the right",
+            "type": "text"
+           }
+          ]
+         }
+        }
+       ],
+       "voiceInstructions": [
+        {
+         "distanceAlongGeometry": 14.26,
+         "announcement": "Your destination is on the right.",
+         "ssmlAnnouncement": "<speak><amazon:effect name=\"drc\"><prosody rate=\"1.08\">Your destination is on the right.</prosody></amazon:effect></speak>"
+        }
+       ]
+      },
+      {
+       "geometry": "scfgaBxmwH??",
+       "mode": "driving",
+       "driving_side": "left",
+       "distance": 0,
+       "duration": 0,
+       "weight": 0,
+       "duration_typical": 0,
+       "weight_typical": 0,
+       "name": "",
+       "maneuver": {
+        "location": [
+         -0.159981,
+         51.514954
+        ],
+        "bearing_before": 255,
+        "bearing_after": 0,
+        "modifier": "right",
+        "instruction": "Your destination is on the right.",
+        "type": "arrive"
+       },
+       "bannerInstructions": [],
+       "voiceInstructions": []
+      }
+     ],
+     "summary": "Constitution Hill, A4202",
+     "distance": 3178.645,
+     "duration": 672.584,
+     "weight": 1124.307,
+     "duration_typical": 659.994,
+     "weight_typical": 1141.442,
+     "via_waypoints": [],
+     "notifications": [
+      {
+       "geometry_index_start": 235,
+       "geometry_index_end": 236,
+       "type": "alert",
+       "subtype": "tunnel",
+       "refresh_type": "static",
+       "details": {
+        "message": "The road leads through a tunnel."
+       }
+      }
+     ]
+    }
+   ],
+   "voiceLocale": "en-US"
+  }
+ ],
+ "uuid": "XE12ewo9kqJqLbxqHYauJb7IIQkanXVtaT1Yx0S00aQDGe8Pqm02LA=="
+}
