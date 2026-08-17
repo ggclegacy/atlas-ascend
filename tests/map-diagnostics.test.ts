@@ -289,6 +289,44 @@ describe("endpoint probe verdicts", () => {
     expect(verdict.action).not.toMatch(/styles:tiles/i);
   });
 
+  it("does not report a routing refusal as a map failure", () => {
+    // Routing is a separate Mapbox service. If Directions is refused while
+    // every map resource returns 200, saying "Mapbox is rejecting this token"
+    // would be false — and would send someone to change a setting that is
+    // demonstrably working.
+    const verdict = summarizeProbes([
+      ...passing,
+      probe({
+        id: "directions",
+        kind: "directions",
+        usedInProduction: false,
+        ok: false,
+        status: 403,
+        message: "Forbidden",
+      }),
+    ]);
+
+    expect(verdict.code).toBe("I-routing");
+    expect(verdict.headline).toMatch(/MAP WORKS/);
+    expect(verdict.detail).toMatch(/403/);
+    // And it must still refuse to invent a cause Mapbox did not state.
+    expect(verdict.action).not.toMatch(/styles:tiles|styles:read|navigation:/i);
+  });
+
+  it("still calls a token-wide refusal what it is when routing fails too", () => {
+    // The routing-only branch must not swallow the case where everything is
+    // refused, which is a genuine credential failure.
+    const verdict = summarizeProbes(
+      [...passing, probe({ id: "directions", kind: "directions" })].map((p) => ({
+        ...p,
+        ok: false,
+        status: 401,
+        message: "Not Authorized - Invalid Token",
+      })),
+    );
+    expect(verdict.code).toBe("A-authentication");
+  });
+
   it("distinguishes a blocked request from a refused one", () => {
     const verdict = summarizeProbes([
       passing[0]!,

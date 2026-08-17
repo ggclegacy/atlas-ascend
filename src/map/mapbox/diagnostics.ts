@@ -118,6 +118,7 @@ export type MapResourceKind =
   | "telemetry"
   | "map-session"
   | "geocode"
+  | "directions"
   | "other"
   | "unknown";
 
@@ -229,6 +230,7 @@ export function classifyResource(url: string | undefined | null): MapResourceKin
   if (/^events\.mapbox\.com/.test(path)) return "telemetry";
   if (/\/map-sessions\//.test(path)) return "map-session";
   if (/\/search\/geocode\//.test(path) || /\/geocoding\//.test(path)) return "geocode";
+  if (/\/directions\/v\d+\//.test(path)) return "directions";
   // Glyphs are checked before tiles: both end in `.pbf`.
   if (/\/fonts\//.test(path)) return "glyphs";
   if (/\/sprites?\//.test(path) || /sprite(@2x)?\.(png|json)$/.test(path)) return "sprite";

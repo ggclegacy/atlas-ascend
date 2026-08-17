@@ -29,6 +29,15 @@ const API = "https://api.mapbox.com";
 /** A tile well inside continental coverage — Austin at z12. */
 const SAMPLE_TILE = "12/935/1686";
 
+/**
+ * A short, unambiguously drivable pair of points in Austin, as `lon,lat;lon,lat`.
+ *
+ * Longitude first — the opposite of how coordinates are spoken, and a reliable
+ * source of silently wrong results. Chosen inside dense road coverage so a
+ * failure here can never be "there is genuinely no route".
+ */
+const DIRECTIONS_SAMPLE = "-97.7431,30.2672;-97.7331,30.2872";
+
 export interface ProbeSpec {
   readonly id: string;
   readonly label: string;
@@ -101,6 +110,22 @@ export const PROBES: readonly ProbeSpec[] = [
     usedInProduction: true,
     meaning: "Backs place search. Independent of the map surface.",
     url: (t) => `${API}/search/geocode/v6/forward?q=austin&limit=1&access_token=${t}`,
+  },
+  {
+    id: "directions",
+    label: "Directions v5 — driving-traffic",
+    kind: "directions",
+    // Nothing requests this yet. It is probed ahead of Phase 3 so the
+    // capability is established from evidence before any routing code is
+    // written on the assumption that it works.
+    usedInProduction: false,
+    meaning:
+      "The routing service Phase 3 depends on, requested with every option Atlas needs: alternatives, full geometry, steps, banner and voice instructions, and congestion annotations. A 200 here is proof the deployed credential can produce a real route.",
+    url: (t) =>
+      `${API}/directions/v5/mapbox/driving-traffic/${DIRECTIONS_SAMPLE}` +
+      `?alternatives=true&geometries=polyline6&overview=full&steps=true` +
+      `&banner_instructions=true&voice_instructions=true` +
+      `&annotations=congestion,duration,distance&access_token=${t}`,
   },
 ];
 
@@ -199,7 +224,10 @@ export type ProbeVerdictCode =
   /** A 401/403 that the evidence does not explain. */
   | "G-unknown-auth"
   /** Nothing on the network is failing; the fault is above it. */
-  | "H-application";
+  | "H-application"
+  /** The map is fine and routing alone is refused — a Phase 3 gate, not a
+   *  map failure. Kept separate so the two are never conflated. */
+  | "I-routing";
 
 export interface ProbeVerdict {
   readonly code: ProbeVerdictCode;
@@ -224,13 +252,30 @@ export function summarizeProbes(results: readonly ProbeResult[]): ProbeVerdict {
       code: "H-application",
       headline: "EVERY MAPBOX ENDPOINT ACCEPTS THIS TOKEN",
       detail:
-        "Source manifest, vector tile, every glyph range, and the hosted style all returned 2xx from this origin. The token, its capabilities, and its URL restrictions are all conclusively fine.",
+        "Source manifest, vector tile, every glyph range, the hosted style, geocoding, and Directions all returned 2xx from this origin. The token, its capabilities, and its URL restrictions are all conclusively fine.",
       action:
         "Any map failure is above the network layer — container size, WebGL, style application, or the surface's own state machine. Run the six levels above.",
     };
   }
 
   const refusals = failed.filter(isAuthRefusal);
+
+  // Routing is a separate service from the map. If it is the only thing
+  // failing, saying "Mapbox is refusing this token" would be false — the map
+  // is provably working. Reported on its own terms, quoting Mapbox verbatim
+  // and naming no cause the response did not state.
+  const routingOnly =
+    failed.length > 0 && failed.every((r) => r.kind === "directions");
+  if (routingOnly) {
+    const routing = failed[0];
+    return {
+      code: "I-routing",
+      headline: "MAP WORKS — DIRECTIONS REFUSED",
+      detail: `Every map resource returned 2xx. ${routing?.label ?? "Directions"} returned ${routing?.status ?? "no status"} and Mapbox said: ${routing?.message ?? "nothing"}.`,
+      action:
+        "Routing is a different service from the map, so this is not a map fault. Report the status and message above exactly as printed — do not change a token setting until that response says what is actually missing.",
+    };
+  }
   const namedScope = refusals.find((r) => r.message !== null && /scope|styles:|fonts:/i.test(r.message));
 
   if (refusals.length === results.length) {
