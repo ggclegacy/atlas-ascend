@@ -22,7 +22,12 @@ import {
   type MapUnavailableReason,
 } from "@/map/provider";
 import type { MapConfiguration } from "@/map/types";
-import { isMapDebugRequested } from "@/map/mapbox/diagnostics";
+import { guidanceFor } from "@/map/guidance";
+import {
+  getLastError,
+  isMapDebugRequested,
+  type RecordedError,
+} from "@/map/mapbox/diagnostics";
 import { WarningIcon } from "@/components/atlas/icons";
 import { Eyebrow } from "@/components/atlas/primitives";
 import { MapDiagnosticsOverlay } from "./MapDiagnosticsOverlay";
@@ -231,12 +236,47 @@ function MapBlocked({ reason }: { reason: MapUnavailableReason }) {
         <p className="atlas-body text-ink-2">{describeReason(reason)}</p>
         {guidance && <p className="atlas-label text-ink-3">{guidance}</p>}
 
+        {/* The observation, printed next to the interpretation. Whoever reads
+            this screen can then check the conclusion against the evidence
+            rather than taking it on trust — which is the whole remedy for a
+            failure state that once named the wrong cause with total
+            confidence. */}
+        <Evidence />
+
         {/* For a rejected token, the single most useful fact is the hostname
             that needs allowing. Printing it removes a guessing step — preview
             deployments in particular have hostnames nobody predicts. */}
         {SHOWS_HOSTNAME.has(reason) && <Hostname />}
       </div>
     </div>
+  );
+}
+
+/**
+ * The raw failure evidence: what Mapbox was asked for, and what it answered.
+ *
+ * Credential-free by construction — `recordError` stores only a redacted URL —
+ * so this is safe to screenshot and paste into a bug report.
+ */
+function Evidence() {
+  const [error, setError] = useState<RecordedError | null>(null);
+
+  // Read after mount, and once more shortly after: the auth-failure body probe
+  // resolves a beat behind the error that triggered it.
+  useEffect(() => {
+    setError(getLastError());
+    const timer = window.setTimeout(() => setError(getLastError()), 3_000);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  if (error === null || error.status === null) return null;
+
+  return (
+    <span className="atlas-selectable atlas-readout-sm max-w-full rounded-lg border border-white/8 bg-raised px-3 py-1.5 text-ink-3">
+      HTTP {error.status} · {error.kind}
+      {error.resource ? ` · ${error.resource}` : ""}
+      {error.body ? ` · Mapbox: “${error.body}”` : ""}
+    </span>
   );
 }
 
@@ -258,12 +298,6 @@ function Hostname() {
 }
 
 /**
- * Recovery guidance.
- *
- * Written for whoever is actually looking at the screen — which during setup is
- * the operator, not an end user. Never a stack trace, always a next action.
- */
-/**
  * Failures where naming the current hostname is the useful next step —
  * i.e. anything that could be a URL restriction on the token.
  */
@@ -271,28 +305,3 @@ const SHOWS_HOSTNAME: ReadonlySet<MapUnavailableReason> = new Set([
   "forbidden",
   "invalid-token",
 ]);
-
-function guidanceFor(reason: MapUnavailableReason): string | null {
-  switch (reason) {
-    case "missing-token":
-      return "Set NEXT_PUBLIC_MAPBOX_TOKEN in your environment and redeploy. It is read at build time, not at runtime.";
-    case "invalid-token":
-      return "Mapbox rejected this key. Check it is a public pk. token, and that it has not been revoked or restricted away from this domain.";
-    case "forbidden":
-      return "The key is valid but not permitted here. Add this site's hostname to the token's URL restrictions.";
-    case "tile-access-denied":
-      return "This token cannot read map tiles. Add the styles:tiles capability to it in the Mapbox dashboard.";
-    case "style-access-denied":
-      return "This token cannot read map styles. Add the styles:read capability to it in the Mapbox dashboard.";
-    case "request-rejected":
-      return "Mapbox refused the request. Reload to try again.";
-    case "webgl-unsupported":
-      return "Atlas Ascend needs WebGL to render the map.";
-    case "network":
-      return "Reconnect to load map tiles.";
-    case "timeout":
-      return "The map service did not respond. Reload to try again.";
-    case "unknown":
-      return "Reload to try again.";
-  }
-}

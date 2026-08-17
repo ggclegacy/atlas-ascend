@@ -1,13 +1,21 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getPublicMapboxToken } from "@/lib/env";
 import { atlasNightStyle } from "@/map/mapbox/atlas-night";
 import {
   describeToken,
   detectWebGL,
   safeResource,
+  tokenAccount,
+  tokenFingerprint,
 } from "@/map/mapbox/diagnostics";
+import {
+  type ProbeResult,
+  type ProbeVerdict,
+  runAllProbes,
+  summarizeProbes,
+} from "./endpointProbe";
 import {
   MapboxMapProvider,
   classifyError,
@@ -84,6 +92,34 @@ export function MapboxLab() {
   const [results, setResults] = useState<LevelResult[]>([]);
   const [running, setRunning] = useState(false);
   const [current, setCurrent] = useState<number | null>(null);
+  const [probes, setProbes] = useState<ProbeResult[] | null>(null);
+  const [probeVerdict, setProbeVerdict] = useState<ProbeVerdict | null>(null);
+  const [probing, setProbing] = useState(false);
+  const [fingerprint, setFingerprint] = useState<string | null>(null);
+
+  useEffect(() => {
+    void tokenFingerprint(getPublicMapboxToken()).then(setFingerprint);
+  }, []);
+
+  /**
+   * Asks Mapbox directly, before any SDK is involved.
+   *
+   * Answers on its own the question the six levels below cannot: whether
+   * Mapbox is refusing anything, and if so, what it says about it. Runs first
+   * in the page because a network refusal makes every render verdict beneath
+   * it uninterpretable.
+   */
+  const runProbes = useCallback(async () => {
+    const token = getPublicMapboxToken();
+    if (token === null || probing) return;
+    setProbing(true);
+    setProbes(null);
+    setProbeVerdict(null);
+    const outcome = await runAllProbes(token);
+    setProbes(outcome);
+    setProbeVerdict(summarizeProbes(outcome));
+    setProbing(false);
+  }, [probing]);
 
   const runAll = useCallback(async () => {
     const host = hostRef.current;
@@ -294,6 +330,117 @@ export function MapboxLab() {
         gap: 10,
       }}
     >
+      {/* The network question comes first. If Mapbox is refusing requests, no
+          rendering verdict below means anything. */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <button
+          type="button"
+          onClick={() => void runProbes()}
+          disabled={probing || token === null}
+          style={{
+            fontFamily: "inherit",
+            fontSize: 13,
+            padding: "10px 18px",
+            borderRadius: 8,
+            cursor: probing ? "default" : "pointer",
+            border: "1px solid #6437E0",
+            background: probing ? "rgba(100,55,224,0.12)" : "rgba(100,55,224,0.26)",
+            color: "#DCD2FF",
+          }}
+        >
+          {probing ? "Asking Mapbox…" : "Probe Mapbox endpoints"}
+        </button>
+        <span style={{ fontSize: 11, color: "#6B6874" }}>
+          Requests each resource directly and prints Mapbox&rsquo;s own answer.
+        </span>
+      </div>
+
+      {probeVerdict && (
+        <div
+          style={{
+            border: `1px solid ${probeVerdict.code === "H-application" ? "#3FB98A" : "#FF6B6B"}`,
+            background: probeVerdict.code === "H-application" ? "#3FB98A1A" : "#FF6B6B1A",
+            borderRadius: 8,
+            padding: "10px 12px",
+          }}
+        >
+          <div
+            style={{
+              color: probeVerdict.code === "H-application" ? "#3FB98A" : "#FF6B6B",
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: "0.08em",
+            }}
+          >
+            {probeVerdict.headline}
+          </div>
+          <div style={{ color: "#6B6874", fontSize: 10, marginTop: 2 }}>
+            class {probeVerdict.code}
+          </div>
+          <div style={{ color: "#D6D3DC", fontSize: 11, marginTop: 4 }}>
+            {probeVerdict.detail}
+          </div>
+          <div style={{ color: "#F6E7BE", fontSize: 11, marginTop: 6 }}>
+            → {probeVerdict.action}
+          </div>
+        </div>
+      )}
+
+      {probes && (
+        <Panel title="Mapbox endpoint probe">
+          <div style={{ overflowX: "auto" }}>
+            <table
+              style={{ borderCollapse: "collapse", width: "100%", fontSize: 10.5, minWidth: 560 }}
+            >
+              <thead>
+                <tr style={{ color: "#6B6874", textAlign: "left" }}>
+                  {["resource", "kind", "prod", "HTTP", "ms", "Mapbox said"].map((h) => (
+                    <th
+                      key={h}
+                      style={{
+                        padding: "4px 6px",
+                        borderBottom: "1px solid rgba(255,255,255,0.14)",
+                      }}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {probes.map((p) => (
+                  <tr key={p.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                    <td style={{ padding: "4px 6px" }}>{p.label}</td>
+                    <td style={{ padding: "4px 6px", color: "#6B6874" }}>{p.kind}</td>
+                    <td style={{ padding: "4px 6px", color: "#6B6874" }}>
+                      {p.usedInProduction ? "yes" : "no"}
+                    </td>
+                    <td
+                      style={{
+                        padding: "4px 6px",
+                        color: p.ok ? "#3FB98A" : "#FF6B6B",
+                        fontWeight: 700,
+                      }}
+                    >
+                      {p.status ?? "—"}
+                    </td>
+                    <td style={{ padding: "4px 6px", color: "#6B6874" }}>{p.ms}</td>
+                    <td style={{ padding: "4px 6px", color: p.message ? "#FF6B6B" : "#6B6874" }}>
+                      {p.message ?? (p.ok ? "ok" : "nothing")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ marginTop: 8, color: "#6B6874" }}>
+            Requested from this page, so the real Origin and Referer are sent — a
+            URL restriction is tested exactly as the deployment experiences it.
+            URLs are recorded with the token redacted.
+          </div>
+        </Panel>
+      )}
+
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
         <button
           type="button"
@@ -433,6 +580,13 @@ export function MapboxLab() {
         />
         <Row label="token" value={describeToken(token)} />
         <Row label="token prefix" value={token ? `${token.slice(0, 6)}…` : "—"} />
+        {/* Identity without disclosure. The account name comes from the
+            token's own public claim set, and the fingerprint reproduces as
+            `printf %s "$TOKEN" | shasum -a 256 | cut -c1-12` — so a deployed
+            build can be checked against the token it is meant to carry
+            without either being pasted anywhere. */}
+        <Row label="token account" value={tokenAccount(token) ?? "—"} />
+        <Row label="token fingerprint" value={fingerprint ?? "…"} />
         <Row
           label="WebGL"
           value={webgl.supported ? webgl.detail : "unavailable"}
@@ -482,35 +636,40 @@ function concludeFrom(
         tone: "#FF6B6B",
       };
 
+    // Reachable only when Mapbox's own response named the capability — the
+    // classifier no longer infers one from the endpoint's path.
     case "tile-access-denied":
       return {
-        headline: "MAPBOX TILE ACCESS DENIED",
-        detail: `Tile request rejected with HTTP ${http} at ${failed.errorResource ?? "the tile endpoint"}.`,
-        action: "Add the styles:tiles capability to this public token in the Mapbox dashboard.",
+        headline: "MAPBOX NAMED A MISSING TILE CAPABILITY",
+        detail: `HTTP ${http} at ${failed.errorResource ?? "the tile endpoint"}, with a response that named the capability.`,
+        action: "Add styles:tiles to this public token in the Mapbox dashboard.",
         tone: "#FF6B6B",
       };
 
     case "style-access-denied":
       return {
-        headline: "MAPBOX STYLE ACCESS DENIED",
-        detail: `Style request rejected with HTTP ${http} at ${failed.errorResource ?? "the styles endpoint"}.`,
-        action: "Add the styles:read capability to this public token in the Mapbox dashboard.",
+        headline: "MAPBOX NAMED A MISSING STYLE CAPABILITY",
+        detail: `HTTP ${http} at ${failed.errorResource ?? "the styles endpoint"}, with a response that named the capability.`,
+        action: "Add styles:read to this public token in the Mapbox dashboard.",
         tone: "#FF6B6B",
       };
 
+    // 401 and 403 are reported as what they are. Each has several possible
+    // causes and Mapbox distinguishes none of them from the status alone, so
+    // the action is to gather evidence rather than to change a setting.
     case "forbidden":
       return {
-        headline: "MAPBOX TOKEN REJECTED",
-        detail: `Hostname: ${host} — HTTP ${http} at ${failed.errorResource ?? "the Mapbox API"}.`,
-        action: `Allow ${host} in this token's URL restrictions in the Mapbox dashboard.`,
+        headline: "MAPBOX REFUSED THE REQUEST (403)",
+        detail: `HTTP ${http} at ${failed.errorResource ?? "the Mapbox API"}, from ${host}. Mapbox did not say why. Candidates: a URL restriction excluding this hostname, or a capability this endpoint requires.`,
+        action: "Run the endpoint probe above — it prints Mapbox's own response body.",
         tone: "#FF6B6B",
       };
 
     case "invalid-token":
       return {
-        headline: "MAPBOX TOKEN INVALID",
-        detail: `Mapbox returned HTTP ${http}. The key was rejected outright rather than restricted.`,
-        action: "Confirm this is a public pk. token and that it has not been revoked, then redeploy.",
+        headline: "MAPBOX REFUSED THE KEY (401)",
+        detail: `HTTP ${http} at ${failed.errorResource ?? "the Mapbox API"}. The credential itself was rejected — revoked, deleted, truncated, or from another account.`,
+        action: "Compare the token account and fingerprint below with the token you expect this build to carry.",
         tone: "#FF6B6B",
       };
 

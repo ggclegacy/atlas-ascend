@@ -19,12 +19,16 @@ import type {
 import { pitchFor } from "../types";
 import { atlasNightStyle } from "./atlas-night";
 import {
+  classifyResource,
   describeContainer,
   describeToken,
   detectWebGL,
   hasNonZeroSize,
+  hostnameOf,
+  readMapboxErrorBody,
   recordError,
   safeResource,
+  sanitizeUrl,
   stage,
   stageFailed,
   warn,
@@ -177,6 +181,19 @@ function waitForLayout(element: HTMLElement, timeout: number): Promise<void> {
 
 // ---------------------------------------------------------------------------
 
+/**
+ * The shape of a Mapbox `error` event, as far as Atlas relies on it.
+ *
+ * Failed requests arrive as an `AJAXError`, which carries `status`, `url`, and
+ * a `statusText`-derived message — and nothing else. Notably **not** the
+ * response body, which is where Mapbox names a scope. Source-attached errors
+ * additionally carry `sourceId`.
+ */
+interface MapboxErrorEvent {
+  readonly error?: Error & { status?: number; url?: string };
+  readonly sourceId?: string;
+}
+
 /** Exported for tests; not part of the public map surface. */
 export class MapboxHandle implements MapHandle {
   private userMarker: Marker | null = null;
@@ -198,6 +215,8 @@ export class MapboxHandle implements MapHandle {
 
   private watchdog: ReturnType<typeof setTimeout> | null = null;
   private resizeObserver: ResizeObserver | null = null;
+  /** One body probe per map. A failing token fails every request it makes. */
+  private probedAuthFailure = false;
 
   private readonly listeners: {
     [K in keyof MapEvents]: Set<MapEvents[K]>;
@@ -264,43 +283,73 @@ export class MapboxHandle implements MapHandle {
     });
 
     map.on("error", (event) => {
-      // Mapbox wraps failed requests in an AJAXError carrying the real HTTP
-      // status. Classifying on `status` rather than pattern-matching the
-      // message is what makes "token rejected" reliably distinguishable from
-      // "network died" — the previous regex approach silently mislabeled a
-      // 401 from a URL-restricted token as "no token configured".
-      const raw = event.error as
-        | (Error & { status?: number; url?: string })
-        | undefined;
-
-      const status = typeof raw?.status === "number" ? raw.status : null;
-      const message = raw?.message ?? "Map failed to load";
-
-      // The request URL identifies which resource failed (tiles vs glyphs vs
-      // styles) and is what lets a scope problem be told apart from a
-      // restriction problem. Strip the query string — it carries the token.
-      const resource = safeResource(raw?.url);
-      const reason = classifyError(status, message, resource);
-      stageFailed(
-        "source-error",
-        `${status ?? "no status"} ${message} — ${resource ?? "unknown resource"}`,
-      );
-      recordError({
-        category: reason,
-        status,
-        resource,
-        message,
-        at: Date.now(),
-      });
-
-      // Only auth/network failures are fatal to the whole surface. A single
-      // failed glyph range should not blank a map that is otherwise fine.
-      if (isAuthFailure(reason) || reason === "network") {
-        this.fail(new MapUnavailableError(reason, message));
-      } else if (!this.isReady) {
-        this.fail(new MapUnavailableError(reason, message));
-      }
+      void this.handleMapError(event as MapboxErrorEvent);
     });
+  }
+
+  /**
+   * Turns a Mapbox `error` event into recorded evidence and, if warranted, a
+   * fatal failure.
+   *
+   * Asynchronous for one reason: on an auth failure the SDK hands us a status
+   * code and nothing else, and a status code alone cannot distinguish a
+   * revoked token from a URL restriction from a missing capability. One
+   * follow-up fetch of the failing URL retrieves the `{"message": …}` Mapbox
+   * actually returned, and that evidence is gathered *before* the failure is
+   * classified — so the user is never shown a specific account remedy that the
+   * response does not support. It runs at most once per map, only for 401/403,
+   * and is bounded by a 2.5s timeout well inside the style watchdog.
+   */
+  private async handleMapError(event: MapboxErrorEvent): Promise<void> {
+    const raw = event.error;
+    const status = typeof raw?.status === "number" ? raw.status : null;
+    const message = raw?.message ?? "Map failed to load";
+    const url = typeof raw?.url === "string" ? raw.url : undefined;
+
+    // Host + path for the compact readout; the full URL, credential-redacted,
+    // for the record — `?secure`, tile coordinates, and glyph ranges all carry
+    // diagnostic value.
+    const resource = safeResource(url);
+    const kind = classifyResource(url);
+    const sourceId = typeof event.sourceId === "string" ? event.sourceId : null;
+
+    let body: string | null = null;
+    if (
+      !this.probedAuthFailure &&
+      url !== undefined &&
+      (status === 401 || status === 403)
+    ) {
+      this.probedAuthFailure = true;
+      body = await readMapboxErrorBody(url);
+    }
+
+    const reason = classifyError(status, message, resource, body);
+
+    stageFailed(
+      "source-error",
+      `${status ?? "no status"} ${kind} ${resource ?? "unknown resource"}` +
+        ` — ${message}${body ? ` — Mapbox said: ${body}` : ""}`,
+    );
+    recordError({
+      category: reason,
+      status,
+      resource,
+      url: sanitizeUrl(url),
+      hostname: hostnameOf(url),
+      kind,
+      message,
+      body,
+      sourceId,
+      at: Date.now(),
+    });
+
+    // Only auth/network failures are fatal to the whole surface. A single
+    // failed glyph range should not blank a map that is otherwise fine.
+    if (isAuthFailure(reason) || reason === "network") {
+      this.fail(new MapUnavailableError(reason, message));
+    } else if (!this.isReady) {
+      this.fail(new MapUnavailableError(reason, message));
+    }
   }
 
   /** Records and emits a fatal error, so late subscribers still receive it. */
@@ -499,13 +548,56 @@ function detectCapability(): Capability {
 }
 
 /**
- * Maps an HTTP status, message, and failing resource onto an Atlas failure
- * reason.
+ * Whether a Mapbox response actually says a scope is missing.
  *
- * The `resource` argument is what makes a scope problem distinguishable from a
- * restriction problem: a 403 on `/v4/…` means the token cannot read tiles,
- * while a 403 on the geocoder means something else entirely. Without it, every
- * auth failure collapses into one unactionable bucket.
+ * Returns the named scope, `"unnamed"` when the wording proves a scope problem
+ * without naming which, or `null` when there is no scope evidence at all.
+ *
+ * URLs are stripped before matching. Mapbox's own copy for a plain 401 is
+ * "…you may have provided an invalid Mapbox access token. See
+ * https://docs.mapbox.com/api/guides/#access-tokens-and-token-scopes" — an
+ * anchor with the word "scopes" in it, attached to a message about an *invalid
+ * token*. Reading that link as evidence of a missing capability is precisely
+ * the mistake this function exists to prevent.
+ *
+ * Exported for testing.
+ */
+export function namesMissingScope(text: string | null | undefined): string | null {
+  if (!text) return null;
+  const prose = text.replace(/https?:\/\/\S+/g, " ");
+
+  const named =
+    /\b(styles:tiles|styles:read|styles:list|fonts:read|fonts:list|tilesets:read|datasets:read)\b/i.exec(
+      prose,
+    );
+  if (named?.[1]) return named[1].toLowerCase();
+
+  return /\b(required|insufficient|missing)\s+scopes?\b|\bscopes?\s+(is|are)\s+required\b|\bnot\s+authorized\s+for\s+scope\b/i.test(
+    prose,
+  )
+    ? "unnamed"
+    : null;
+}
+
+/**
+ * Maps an HTTP status, message, failing resource, and — when it could be
+ * obtained — Mapbox's own response body onto an Atlas failure reason.
+ *
+ * **A specific account misconfiguration is only ever named when Mapbox's
+ * response proves it.** An earlier version inferred the cause from the URL
+ * alone: any 401/403 on a `/v4/…` path became `tile-access-denied`, which the
+ * UI renders as "add the styles:tiles capability". That is wrong in every
+ * direction that matters. A revoked token, a deleted token, a token from
+ * another account, and a URL restriction that excludes this host all produce an
+ * identical 401/403 on that same path — and because `atlasNight` is an inline
+ * style, `/v4/<tileset>.json` is the *first* authenticated request the map
+ * makes, so every one of those causes was reported as a missing tile scope.
+ *
+ * Mapbox GL JS makes this worse by design: its `AJAXError` keeps only the
+ * status, the URL, and a `statusText` that is empty over HTTP/2. The response
+ * body — the only place Mapbox ever names a scope — is discarded. So unless a
+ * caller passes `body` (see `readMapboxErrorBody`), there is no scope evidence
+ * available and none may be claimed.
  *
  * Exported for testing.
  */
@@ -513,15 +605,32 @@ export function classifyError(
   status: number | null,
   message: string,
   resource?: string | null,
+  body?: string | null,
 ): MapUnavailableReason {
   const path = resource ?? "";
   const isTile = /\/v4\//.test(path) || /\.mvt/.test(path);
   const isStyle = /\/styles\//.test(path);
 
   if (status === 401 || status === 403) {
-    // Endpoint-specific auth failures name the missing capability directly.
-    if (isTile) return "tile-access-denied";
-    if (isStyle) return "style-access-denied";
+    // The resource decides *which* capability is implicated, but only after
+    // the response has established that a capability is implicated at all.
+    const scope = namesMissingScope(`${message} ${body ?? ""}`);
+    if (scope !== null) {
+      if (scope === "styles:tiles" || (scope === "unnamed" && isTile)) {
+        return "tile-access-denied";
+      }
+      if (
+        scope === "styles:read" ||
+        scope === "styles:list" ||
+        (scope === "unnamed" && isStyle)
+      ) {
+        return "style-access-denied";
+      }
+    }
+    // No scope evidence: report what was actually observed. 401 means the
+    // credential was refused; 403 means it was recognized and not permitted.
+    // Which of the several possible causes applies is not knowable from here,
+    // and the guidance must not pretend otherwise.
     return status === 401 ? "invalid-token" : "forbidden";
   }
 
@@ -655,8 +764,11 @@ export function describeReason(reason: MapUnavailableReason): string {
       return "Map service not configured";
     case "invalid-token":
       return "Map service rejected this key";
+    // Deliberately does not say "this site". A 403 is consistent with a URL
+    // restriction, a missing capability, and an account-level block, and
+    // Mapbox does not say which.
     case "forbidden":
-      return "Map service rejected this site";
+      return "Map service refused this request";
     case "tile-access-denied":
       return "Map tile access denied";
     case "style-access-denied":

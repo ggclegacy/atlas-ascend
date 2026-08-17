@@ -93,9 +93,27 @@ const LABEL_HALO = "#000000";
 const FONT_MEDIUM = ["DIN Pro Medium", "Arial Unicode MS Regular"];
 const FONT_BOLD = ["DIN Pro Bold", "Arial Unicode MS Bold"];
 
+/**
+ * Every remote resource this style depends on, named once.
+ *
+ * Exported so the diagnostic harness probes exactly what the map requests
+ * rather than a hand-copied approximation of it. A probe that tests a
+ * different tileset than the style uses answers a question nobody asked.
+ *
+ * Both tilesets are Mapbox-owned and public. Nothing here belongs to another
+ * account, and nothing here is a private or legacy tileset.
+ */
+export const ATLAS_NIGHT_TILESET = "mapbox.mapbox-streets-v8";
+export const ATLAS_NIGHT_DEM_TILESET = "mapbox.mapbox-terrain-dem-v1";
+/** Font stacks referenced by the symbol layers, in glyph-request form. */
+export const ATLAS_NIGHT_FONT_STACKS: ReadonlyArray<readonly string[]> = [
+  FONT_MEDIUM,
+  FONT_BOLD,
+];
+
 const V8 = "composite";
-const SRC = "mapbox://mapbox.mapbox-streets-v8";
-const DEM = "mapbox://mapbox.mapbox-terrain-dem-v1";
+const SRC = `mapbox://${ATLAS_NIGHT_TILESET}`;
+const DEM = `mapbox://${ATLAS_NIGHT_DEM_TILESET}`;
 
 /**
  * Interpolated line width. Mapbox road widths must scale with zoom or the

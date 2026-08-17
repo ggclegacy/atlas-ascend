@@ -12,7 +12,7 @@ ledger. **Update it in the same commit as the code it describes.**
 | 🔴 **BLOCKED** | Requires credentials, provider setup, browser capability, or another dependency |
 
 **Phase:** 2 — web application foundation (+ blank-map incident, + fresh-deploy readiness)
-**Last updated:** 2026-08-16 (invisible-map fix)
+**Last updated:** 2026-08-17 (Mapbox authorization misdiagnosis fix)
 **Deployable to Vercel:** Yes, zero-config. Requires exactly one environment variable (`NEXT_PUBLIC_MAPBOX_TOKEN`), and deploys successfully without even that — showing an explicit MAP SERVICE NOT CONFIGURED state.
 
 ---
@@ -21,11 +21,67 @@ ledger. **Update it in the same commit as the code it describes.**
 
 | Tier | State |
 |---|---|
-| ✅ **BUILD VERIFIED** | Yes — 95 tests, clean typecheck and production build |
+| ✅ **BUILD VERIFIED** | Yes — 116 tests, clean typecheck and production build |
 | ✅ **MAPBOX CONNECTIVITY VERIFIED** | Yes — deployed token returns 200 from TileJSON, tiles, glyphs, geocoding, stock styles |
 | ✅ **ATLAS PROVIDER VERIFIED** | Yes — `/debug/mapbox` levels 4–5 render real geography |
 | ✅ **COMMAND CENTER FRAMEBUFFER VERIFIED** | Yes — the map canvas contains real geography |
 | ⬜ **NORMAL COMMAND CENTER VISIBILITY** | **Not yet** — only becomes yes once observed on screen after this fix |
+
+---
+
+## Mapbox authorization misdiagnosis (2026-08-17) — FIXED
+
+**Production reported "Map tile access denied — add the `styles:tiles`
+capability" for a token that already had it. Nothing about a capability was ever
+observed.** `classifyError` inferred one from the shape of the failing URL:
+`401/403` + a path containing `/v4/` → `tile-access-denied`.
+
+That inference is unsound in every direction. A revoked token, a deleted token,
+a token belonging to another account, and a URL restriction excluding the host
+all produce an identical bare 401/403. Worse, it is not a rare edge: because
+`atlasNight` is an **inline** style, the source manifest at
+`/v4/mapbox.mapbox-streets-v8.json` is the *first* authenticated request the map
+makes — so every token-level rejection reached that path first and every one of
+them came out as "your token lacks `styles:tiles`".
+
+Mapbox GL JS makes the guess unavoidable unless something breaks the pattern:
+its `AJAXError` keeps `status`, `url`, and a `statusText` that is the empty
+string over HTTP/2, and **discards the response body** — the only place Mapbox
+ever names a scope.
+
+**Proven at runtime, not argued.** The deployed production build was driven in
+headless Chromium with WebGL while one request was answered with a generic
+`401 {"message":"Not Authorized - Invalid Token"}`:
+
+| Build | Reported reason | Shown to the operator |
+|---|---|---|
+| Deployed (`d2d6a35`) | `tile-access-denied` | "Add the styles:tiles capability" |
+| Fixed | `invalid-token` | "Mapbox refused this key outright (HTTP 401)" + `HTTP 401 · tilejson · api.mapbox.com/v4/…json · Mapbox: "Not Authorized - Invalid Token"` |
+
+**Fixes:**
+
+| Area | Change |
+|---|---|
+| `classifyError` | A capability is named **only** when Mapbox's response names one. URLs are stripped before matching, because mapbox-gl's own 401 copy links to a docs anchor called `#access-tokens-and-token-scopes` |
+| Evidence capture | On a 401/403 the provider fetches the failing URL once to read the `{"message": …}` the SDK threw away, **before** classifying |
+| Recorded error | Now carries resource kind, hostname, redacted full URL, source id, and Mapbox's own body — observation kept separate from inference |
+| Failure copy | `src/map/guidance.ts`, testable. 401/403 list their candidate causes instead of asserting one; the blocked screen prints the raw evidence beside the interpretation |
+| `/debug/mapbox` | **Direct endpoint probe** — requests every resource the style uses from the page itself (real Origin/Referer, so URL restrictions are tested as deployed) and prints Mapbox's answer, with an eight-class verdict that keeps authentication, tile, font, style, source-authorization, and application failures distinct |
+| Token identity | `/debug/mapbox` and the overlay show the token's account and a SHA-256 fingerprint, reproducible as `printf %s "$TOKEN" \| shasum -a 256 \| cut -c1-12` — so a deployment can be checked against the expected token without disclosing either |
+
+**Guards added** (`tests/map-diagnostics.test.ts`, plus `map-runtime.test.ts`):
+no user-facing string may prescribe a capability for a reason that does not
+require proof of one; the real Mapbox 401/403 bodies must not read as scope
+evidence; the docs-anchor false positive is asserted directly; and sanitised
+URLs must contain no fragment of a token. Mutation-checked — 4 fail against the
+shipped classifier.
+
+**atlasNight audited and clean.** Both tilesets (`mapbox.mapbox-streets-v8`,
+`mapbox.mapbox-terrain-dem-v1`) are Mapbox-owned and public; all ten
+`source-layer` names were checked against the live TileJSON's `vector_layers`
+(zero unknown); no sprite is requested; no `mapbox://` URL is malformed; nothing
+belongs to another account. Resource names are now exported from
+`atlas-night.ts` so the probe cannot drift from what the style requests.
 
 ---
 

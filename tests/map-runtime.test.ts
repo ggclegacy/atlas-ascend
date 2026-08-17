@@ -6,6 +6,7 @@ import {
   MapboxHandle,
   classifyError,
   describeReason,
+  namesMissingScope,
 } from "@/map/mapbox/MapboxMapProvider";
 import { MapUnavailableError, type MapUnavailableReason } from "@/map/provider";
 import type { MapConfiguration } from "@/map/types";
@@ -88,17 +89,96 @@ describe("map error classification", () => {
     expect(classifyError(403, "Forbidden")).toBe("forbidden");
   });
 
-  it("names the missing capability when a tile or style request is refused", () => {
-    // This is what turns "check your Mapbox settings" into a specific action.
+  it("never invents a missing capability from the endpoint alone", () => {
+    // THE 2026-08-17 REGRESSION. Any 401/403 on a `/v4/…` path was reported as
+    // `tile-access-denied`, which the UI renders as "add the styles:tiles
+    // capability" — told to an operator whose token already had it.
+    //
+    // It is not a near miss. Because atlasNight is an inline style, the source
+    // manifest at `/v4/<tileset>.json` is the FIRST authenticated request the
+    // map makes, so a revoked token, a deleted token, a token from another
+    // account, and a URL restriction excluding the host ALL landed on this
+    // path first and all came out as "your token lacks styles:tiles".
+    const tilejson = "api.mapbox.com/v4/mapbox.mapbox-streets-v8.json";
+    const tile = "api.mapbox.com/v4/mapbox.mapbox-streets-v8/12/935/1686.mvt";
+    const style = "api.mapbox.com/styles/v1/mapbox/dark-v11";
+
+    for (const resource of [tilejson, tile]) {
+      expect(classifyError(403, "Forbidden", resource)).toBe("forbidden");
+      expect(classifyError(401, "Unauthorized", resource)).toBe("invalid-token");
+    }
+    expect(classifyError(403, "Forbidden", style)).toBe("forbidden");
+    expect(classifyError(401, "Unauthorized", style)).toBe("invalid-token");
+  });
+
+  it("does not treat the bodies Mapbox actually returns as scope evidence", () => {
+    // Captured from api.mapbox.com. None of them mentions a capability.
+    const tilejson = "api.mapbox.com/v4/mapbox.mapbox-streets-v8.json";
+
     expect(
-      classifyError(403, "Forbidden", "api.mapbox.com/v4/mapbox.mapbox-streets-v8.json"),
+      classifyError(401, "Unauthorized", tilejson, "Not Authorized - Invalid Token"),
+    ).toBe("invalid-token");
+    expect(
+      classifyError(401, "Unauthorized", tilejson, "Not Authorized — Direct access not allowed"),
+    ).toBe("invalid-token");
+    expect(classifyError(403, "Forbidden", tilejson, "Forbidden")).toBe("forbidden");
+  });
+
+  it("is not fooled by the docs link in Mapbox's own 401 copy", () => {
+    // mapbox-gl builds this message itself for any 401 on a Mapbox host. The
+    // anchor is literally "#access-tokens-and-token-scopes" — a URL is never
+    // evidence, and reading it as one would resurrect the bug.
+    const sdkMessage =
+      "Unauthorized: you may have provided an invalid Mapbox access token. " +
+      "See https://docs.mapbox.com/api/guides/#access-tokens-and-token-scopes";
+
+    expect(
+      classifyError(401, sdkMessage, "api.mapbox.com/v4/mapbox.mapbox-streets-v8.json"),
+    ).toBe("invalid-token");
+    expect(namesMissingScope(sdkMessage)).toBeNull();
+  });
+
+  it("names the capability only when Mapbox's response names it", () => {
+    // The one case where the specific remedy is honest.
+    expect(
+      classifyError(
+        403,
+        "Forbidden",
+        "api.mapbox.com/v4/mapbox.mapbox-streets-v8/12/935/1686.mvt",
+        "The access token does not have the required scope: styles:tiles",
+      ),
     ).toBe("tile-access-denied");
+
     expect(
-      classifyError(401, "Unauthorized", "api.mapbox.com/v4/mapbox.mapbox-streets-v8/12/935/1686.mvt"),
-    ).toBe("tile-access-denied");
-    expect(
-      classifyError(403, "Forbidden", "api.mapbox.com/styles/v1/mapbox/dark-v11"),
+      classifyError(
+        403,
+        "Forbidden",
+        "api.mapbox.com/styles/v1/mapbox/dark-v11",
+        '{"message":"Insufficient scope: styles:read"}',
+      ),
     ).toBe("style-access-denied");
+
+    // Wording that proves a scope problem without naming which one: the
+    // endpoint may then say which capability is implicated.
+    expect(
+      classifyError(
+        403,
+        "Forbidden",
+        "api.mapbox.com/v4/mapbox.mapbox-streets-v8.json",
+        "Token is missing a required scope",
+      ),
+    ).toBe("tile-access-denied");
+  });
+
+  it("recognises scope wording without matching unrelated prose", () => {
+    expect(namesMissingScope("required scope: styles:tiles")).toBe("styles:tiles");
+    expect(namesMissingScope("insufficient scope")).toBe("unnamed");
+    expect(namesMissingScope("Not Authorized - Invalid Token")).toBeNull();
+    expect(namesMissingScope("Forbidden")).toBeNull();
+    expect(namesMissingScope("")).toBeNull();
+    expect(namesMissingScope(null)).toBeNull();
+    // "telescope" must not read as "scope".
+    expect(namesMissingScope("the telescope failed")).toBeNull();
   });
 
   it("distinguishes client rejections from server and transport failures", () => {

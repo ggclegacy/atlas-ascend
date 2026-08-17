@@ -8,6 +8,8 @@ import {
   elapsedMs,
   getLastError,
   getTrace,
+  tokenAccount,
+  tokenFingerprint,
 } from "@/map/mapbox/diagnostics";
 import type { MapHandle, MapInspection, MapUnavailableReason } from "@/map/provider";
 import { Panel, Row, yesNo } from "@/features/debug/DebugReadout";
@@ -34,7 +36,14 @@ export function MapDiagnosticsOverlay({
 }) {
   const [hidden, setHidden] = useState(false);
   const [inspection, setInspection] = useState<MapInspection | null>(null);
+  const [fingerprint, setFingerprint] = useState<string | null>(null);
   const [, forceTick] = useState(0);
+
+  // Identifies *which* token this build shipped without disclosing it, so a
+  // deployment can be checked against the token it is supposed to be using.
+  useEffect(() => {
+    void tokenFingerprint(getPublicMapboxToken()).then(setFingerprint);
+  }, []);
 
   // Poll rather than subscribe: the interesting values (canvas size, style
   // loaded, layer count) change without emitting events.
@@ -81,6 +90,8 @@ export function MapDiagnosticsOverlay({
         />
         <Row label="token" value={describeToken(token)} />
         <Row label="token prefix" value={token ? `${token.slice(0, 3)}…` : "—"} />
+        <Row label="token account" value={tokenAccount(token) ?? "—"} />
+        <Row label="token fingerprint" value={fingerprint ?? "…"} />
         <Row
           label="WebGL"
           value={webgl.supported ? webgl.detail : "unavailable"}
@@ -164,10 +175,20 @@ export function MapDiagnosticsOverlay({
 
         {lastError && (
           <>
-            <Row label="last error" value={lastError.category} verdict="bad" />
+            {/* Observation first, interpretation last. The classified category
+                is a conclusion drawn from the rows above it, and printing it
+                on its own once let a wrong conclusion travel unchallenged. */}
             <Row label="HTTP status" value={lastError.status ?? "—"} verdict="bad" />
-            <Row label="resource" value={lastError.resource ?? "—"} />
-            <Row label="message" value={lastError.message} />
+            <Row label="resource kind" value={lastError.kind} verdict="bad" />
+            <Row label="request" value={lastError.url ?? lastError.resource ?? "—"} />
+            <Row label="source" value={lastError.sourceId ?? "—"} />
+            <Row label="SDK message" value={lastError.message} />
+            <Row
+              label="Mapbox response"
+              value={lastError.body ?? "not disclosed by the SDK"}
+              verdict={lastError.body ? "bad" : "warn"}
+            />
+            <Row label="classified as" value={lastError.category} verdict="bad" />
           </>
         )}
 
