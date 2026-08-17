@@ -11,296 +11,131 @@ ledger. **Update it in the same commit as the code it describes.**
 | 🔵 **PLACEHOLDER** | Visual/structural only |
 | 🔴 **BLOCKED** | Requires credentials, provider setup, browser capability, or another dependency |
 
-**Phase:** 2 — web application foundation (+ blank-map incident, + fresh-deploy readiness)
-**Last updated:** 2026-08-17 (Mapbox authorization misdiagnosis fix)
+**Phase:** 2 — web application foundation, prepared for a clean Vercel import
+**Last updated:** 2026-08-17 (fresh-deployment readiness)
 **Deployable to Vercel:** Yes, zero-config. Requires exactly one environment variable (`NEXT_PUBLIC_MAPBOX_TOKEN`), and deploys successfully without even that — showing an explicit MAP SERVICE NOT CONFIGURED state.
 
 ---
 
 ## Verification tiers
 
+Each tier is a strictly stronger claim. None is asserted without having been
+observed at that level.
+
 | Tier | State |
 |---|---|
-| ✅ **BUILD VERIFIED** | Yes — 116 tests, clean typecheck and production build |
-| ✅ **MAPBOX CONNECTIVITY VERIFIED** | Yes — deployed token returns 200 from TileJSON, tiles, glyphs, geocoding, stock styles |
-| ✅ **ATLAS PROVIDER VERIFIED** | Yes — `/debug/mapbox` levels 4–5 render real geography |
-| ✅ **COMMAND CENTER FRAMEBUFFER VERIFIED** | Yes — the map canvas contains real geography |
-| ⬜ **NORMAL COMMAND CENTER VISIBILITY** | **Not yet** — only becomes yes once observed on screen after this fix |
+| ✅ **BUILD VERIFIED** | Yes — clean typecheck, full suite green, clean production build, both with and without a token |
+| ✅ **RUNTIME VERIFIED** | Yes — production server driven in headless Chromium with WebGL; every route served, map reached `load`, real geography drawn |
+| ⬜ **PRODUCTION VERIFIED** | **Not yet** — becomes yes only once the new Vercel deployment has been observed rendering on a real device |
 
 ---
 
-## Mapbox authorization misdiagnosis (2026-08-17) — FIXED
+## Fresh deployment contract
 
-**Production reported "Map tile access denied — add the `styles:tiles`
-capability" for a token that already had it. Nothing about a capability was ever
-observed.** `classifyError` inferred one from the shape of the failing URL:
-`401/403` + a path containing `/v4/` → `tile-access-denied`.
+Everything a clean Vercel import needs, and nothing else.
 
-That inference is unsound in every direction. A revoked token, a deleted token,
-a token belonging to another account, and a URL restriction excluding the host
-all produce an identical bare 401/403. Worse, it is not a rare edge: because
-`atlasNight` is an **inline** style, the source manifest at
-`/v4/mapbox.mapbox-streets-v8.json` is the *first* authenticated request the map
-makes — so every token-level rejection reached that path first and every one of
-them came out as "your token lacks `styles:tiles`".
-
-Mapbox GL JS makes the guess unavoidable unless something breaks the pattern:
-its `AJAXError` keeps `status`, `url`, and a `statusText` that is the empty
-string over HTTP/2, and **discards the response body** — the only place Mapbox
-ever names a scope.
-
-**Proven at runtime, not argued.** The deployed production build was driven in
-headless Chromium with WebGL while one request was answered with a generic
-`401 {"message":"Not Authorized - Invalid Token"}`:
-
-| Build | Reported reason | Shown to the operator |
-|---|---|---|
-| Deployed (`d2d6a35`) | `tile-access-denied` | "Add the styles:tiles capability" |
-| Fixed | `invalid-token` | "Mapbox refused this key outright (HTTP 401)" + `HTTP 401 · tilejson · api.mapbox.com/v4/…json · Mapbox: "Not Authorized - Invalid Token"` |
-
-**Fixes:**
-
-| Area | Change |
+| Item | Value |
 |---|---|
-| `classifyError` | A capability is named **only** when Mapbox's response names one. URLs are stripped before matching, because mapbox-gl's own 401 copy links to a docs anchor called `#access-tokens-and-token-scopes` |
-| Evidence capture | On a 401/403 the provider fetches the failing URL once to read the `{"message": …}` the SDK threw away, **before** classifying |
-| Recorded error | Now carries resource kind, hostname, redacted full URL, source id, and Mapbox's own body — observation kept separate from inference |
-| Failure copy | `src/map/guidance.ts`, testable. 401/403 list their candidate causes instead of asserting one; the blocked screen prints the raw evidence beside the interpretation |
-| `/debug/mapbox` | **Direct endpoint probe** — requests every resource the style uses from the page itself (real Origin/Referer, so URL restrictions are tested as deployed) and prints Mapbox's answer, with an eight-class verdict that keeps authentication, tile, font, style, source-authorization, and application failures distinct |
-| Token identity | `/debug/mapbox` and the overlay show the token's account and a SHA-256 fingerprint, reproducible as `printf %s "$TOKEN" \| shasum -a 256 \| cut -c1-12` — so a deployment can be checked against the expected token without disclosing either |
+| Framework | Next.js (auto-detected) |
+| Root directory | `./` |
+| Build / install / output | Vercel defaults — **no `vercel.json`, none needed** |
+| Node | `engines.node >= 20.9.0` — permissive, so Vercel picks its own default |
+| Environment variables | **exactly one:** `NEXT_PUBLIC_MAPBOX_TOKEN` |
 
-**Guards added** (`tests/map-diagnostics.test.ts`, plus `map-runtime.test.ts`):
-no user-facing string may prescribe a capability for a reason that does not
-require proof of one; the real Mapbox 401/403 bodies must not read as scope
-evidence; the docs-anchor false positive is asserted directly; and sanitised
-URLs must contain no fragment of a token. Mutation-checked — 4 fail against the
-shipped classifier.
+**One variable, one accessor.** `getPublicMapboxToken()` in `src/lib/env.ts` is
+the only place any Mapbox credential is resolved — the map, the diagnostics,
+and the `/api/search` geocoder all route through it. There is no
+`MAPBOX_TOKEN`, no fallback, no hardcoded token, and no second reader whose
+trim/empty rules could drift from the first.
 
-**atlasNight audited and clean.** Both tilesets (`mapbox.mapbox-streets-v8`,
-`mapbox.mapbox-terrain-dem-v1`) are Mapbox-owned and public; all ten
-`source-layer` names were checked against the live TileJSON's `vector_layers`
-(zero unknown); no sprite is requested; no `mapbox://` URL is malformed; nothing
-belongs to another account. Resource names are now exported from
-`atlas-night.ts` so the probe cannot drift from what the style requests.
+**`NEXT_PUBLIC_` means build time.** The value is inlined into the client
+bundle when the project is compiled, not read when it runs. Changing it
+requires a **new build**; redeploying an existing artifact keeps the old value.
+This single fact accounts for most of the time this project has lost to
+deployment ambiguity.
 
-**Follow-up (2026-08-17): the underlying production failure is a stale
-build-time token in ONE Vercel project.** Deployment
-`atlas-ascend-9qu1bq8i6-…` (project `atlas-ascend`, commit `d2d6a35`, built
-2026-08-16T23:29:32Z) returns 401 on `styles/v1/mapbox/dark-v11` *and* on
-tiles. Its sibling `atlas-ascend-y39u` was built from the **same commit 21
-seconds earlier** and returns 200 on all seven endpoints — same code, same
-minute, so the only variable is the build-time env var.
+**No token is still a valid deployment.** The app builds and serves every route
+with the variable absent, showing an explicit MAP SERVICE NOT CONFIGURED state;
+`/api/search` answers `503 {"failure":"not-configured"}` rather than crashing.
 
-Mapbox's answer to every way a public token can be wrong was measured
-directly, and all of them are indistinguishable:
-
-| Token presented | `/styles/v1/mapbox/dark-v11` | TileJSON |
-|---|---|---|
-| valid (`a38aca79dac0`) | 200 | 200 |
-| truncated by one char | 401 `Not Authorized - Invalid Token` | 401 |
-| signature replaced, same account | 401 `Not Authorized - Invalid Token` | 401 |
-| unknown account | 401 `Not Authorized - Invalid Token` | 401 |
-| wrapped in quotes | 401 | 401 `Not Authorized … Direct access not allowed` |
-| trailing newline | 401 | 401 |
-| empty | 401 | 401 |
-
-No 403 is reachable this way — 403 is what a *valid* token that is restricted
-or under-scoped returns. **401 on the public `dark-v11` style is proof the
-credential itself is unknown to Mapbox**, and no scope can produce it: a token
-missing `styles:tiles` would still read the style, and one missing
-`styles:read` would still read tiles. Length and prefix cannot distinguish two
-tokens from one account — every default public token for the same account is
-93 chars and starts `pk.eyJ` — which is why the fingerprint exists.
-
-The harness now reports this correctly end to end; driven under a forced 401 it
-prints `invalid-token` with Mapbox's verbatim body on every failing level,
-where it previously printed `style-access-denied` / `tile-access-denied` with
-no body at all.
+**No deployment identity in the repository.** No `.vercel` directory, no
+committed environment files, no hostname or project name from any prior
+deployment. Diagnostics read `window.location.hostname` live, so the app is
+correct on whatever domain it lands on.
 
 ---
 
-## Invisible-map root cause (2026-08-16) — FIXED
+## Map incidents — resolved
 
-**The diagnostics were measuring the wrong surface.** `sampleCanvas()` reads
-`map.getCanvas()` — the WebGL framebuffer. The Command Center's scrims are DOM
-siblings composited by the browser *after* that. A canvas full of geography and
-a screen that reads black are entirely compatible facts, which is why four
-passes of "ALL LEVELS RENDER" never contradicted the symptom.
+Four defects, each of which produced a dark rectangle or a confidently wrong
+explanation for one. Recorded because the guards that now prevent them only
+make sense alongside what they are guarding against.
 
-Compounding it: `/debug/mapbox` level 6 was labeled "Command Center MapSurface"
-but its code branched on `level.id >= 4`, making it byte-identical to level 5.
-It never mounted a single Command Center overlay.
+**1 · The surface hid a working map.** The loading veil was opaque with no
+timeout, and `ready`/`error` emitted before the consumer subscribed were
+dropped with no replay — so a map that loaded during that window left the UI
+veiled forever. Fixed with terminal-state replay and a 15s watchdog. A style
+that lands *after* the watchdog fires now withdraws the recorded timeout, so a
+slow connection cannot strand the surface or mask a later real failure.
 
-**Measured composite, iPhone-class 852px viewport:**
+**2 · The map rendered but read as black.** Roads ran `#191920`–`#525263` on a
+`#05050A` ground while the scrims laid 0.82/0.93 black over ~65% of a phone
+viewport. The framebuffer was full of geography that no one could see — which
+is why four passes of "all levels render" never contradicted the symptom.
+Fixed by re-spacing the road ladder to even ~13-luma steps and lightening the
+scrims to 0.68/0.82. `src/map/legibility.ts` now models the scrim composite
+analytically and `tests/legibility.test.ts` enforces a minimum road-to-ground
+separation, so the map cannot silently become unreadable again.
 
-| Metric | Before | After |
-|---|---|---|
-| Peak scrim alpha | 0.82 | **0.70** |
-| Scrim heights | 208px + 320px | **176px + 288px** |
-| Viewport left clear | 38% | **45%** |
-| Motorway↔ground, unscrimmed | 120.8 luma | 120.8 |
-| Motorway↔ground, under peak scrim | **21.7 luma** | **36.2 luma** |
-| Bottom scrim intruding into middle third | **yes** | no |
+**3 · A generic 401 was reported as a missing capability.** `classifyError`
+inferred a scope from the shape of the failing URL: any 401/403 on a `/v4/…`
+path became "add the `styles:tiles` capability". Because `atlasNight` is an
+**inline** style, `/v4/<tileset>.json` is the *first* authenticated request the
+map makes — so a revoked token, a deleted token, a token from another account,
+and a URL restriction all landed there first and all came out as the same
+false accusation. Mapbox GL JS compounds it: its `AJAXError` keeps `status`,
+`url`, and a `statusText` that is empty over HTTP/2, and **discards the
+response body**, which is the only place Mapbox ever names a scope.
 
-The key realization: every floating control (vehicle chip, pills, prompt bar) is
-`.atlas-glass` and carries its own background, and the telemetry readout already
-has a drop-shadow. The scrims were darkening the entire map to buy contrast that
-the chrome already provided for itself.
+Measured directly: every way a public token can be wrong — truncated,
+re-signed, unknown account, quote-wrapped, newline-suffixed, empty — returns an
+identical `401 {"message":"Not Authorized - Invalid Token"}` on both the hosted
+style and the TileJSON. No scope is distinguishable from a status code, and a
+403 (not a 401) is what a *valid* but restricted or under-scoped token returns.
 
-Road ladder also re-spaced to even ~13-luma steps (47→126) so each class
-resolves distinctly. Ground stays at 5.6 luma — obsidian is depth, not
-brightness.
+Now: a capability is named **only** when Mapbox's own response names one; on a
+401/403 the provider fetches the failing URL once to read the body the SDK threw
+away, *before* classifying; and the failure screen prints the raw evidence
+beside the interpretation. `tests/map-diagnostics.test.ts` forbids any
+user-facing string from prescribing a capability for a reason that does not
+require proof of one.
 
-**Guards added** (`src/map/legibility.ts` + `tests/legibility.test.ts`) modeling
-the scrim composite analytically: opacity ceiling, clear-band floor, middle-third
-protection, per-class road/ground delta after worst-case scrim, ladder spacing,
-and a ground-darkness ceiling so the fix can never become "brighten until it
-works". Mutation-tested — 4 of them fail against the previously-shipped values.
-
----
-
-## Production observation
-
-**What production observation established (2026-08-16).** The deployment was
-fetched and inspected directly:
-
-- All routes return 200, including `/debug/mapbox`
-- The deployed client bundle contains the current commit (verified by the new
-  motorway color `#78788c` and the `atlasdebug` flag)
-- **`NEXT_PUBLIC_MAPBOX_TOKEN` is present in the production client bundle**
-- That exact token was then tested against every Mapbox endpoint the map uses
-
-What it did **not** establish: whether WebGL draws a frame in a real browser.
-That still requires a human looking at a screen.
+**4 · A stale build-time token.** Two projects built from the same commit
+seconds apart behaved differently, because `NEXT_PUBLIC_*` is baked in at build.
+This is the failure mode the fresh-deployment contract above exists to remove,
+and the reason `/debug/mapbox` reports a token fingerprint.
 
 ---
 
-## ⚠️ Open incident: map not visibly rendering in production
+## Diagnostics
 
-**Reported:** deployment succeeds, Command Center shell and search render, the
-map area is blank/dark. `NEXT_PUBLIC_MAPBOX_TOKEN` is set in Vercel.
+Permanent, unlinked from every product surface, `noindex`, and reachable in
+production by design — the failures worth diagnosing only occur there.
 
-**Ruled out by direct evidence** (2026-08-15):
-
-| Suspect | Verdict | How it was proven |
-|---|---|---|
-| Token not reaching the client | **Not the cause** | Built with a probe token; found inlined in a client chunk |
-| `atlasNight` style invalid | **Not the cause** | 0 errors from Mapbox's own style-spec validator, all 4 capability configs |
-| Mapbox CSS lost by the dynamic import | **Not the cause** | CSS chunk is emitted and referenced by a Turbopack loader stub present in the page graph |
-| Container sizing | **Not the cause** | `absolute inset-0` inside a `position: relative`, `100dvh` viewport; now additionally guarded |
-
-**Confirmed defects — fixed:** the loading veil was opaque with no timeout, so
-any failure to reach `load` rendered exactly the reported blank rectangle;
-`ready`/`error` emitted before the consumer subscribed were dropped with no
-replay; error classification regex-matched messages and mislabeled a 401 as
-"no token configured"; a `maritime`-vs-string filter silently suppressed all
-admin boundaries.
-
-**Second pass (2026-08-15, after report of a still-black screen).** Additional
-suspects ruled out by direct inspection of the built output:
-
-| Suspect | Verdict | How it was checked |
-|---|---|---|
-| Tailwind not generating utilities | **Not the cause** | `bg-obsidian`, `text-ink`, `atlas-glass`, `atlas-viewport`, `atlas-scrim-top`, `bg-raised` all present in the emitted stylesheet |
-| z-index / stacking conflict | **Not the cause** | No z-index anywhere in the Command Center tree; chrome follows the map in DOM order. Explicit `z-0/10/20` layering added anyway to make it structural |
-| Map covering Atlas chrome | **Not possible now** | Map pinned to `z-0` beneath scrims (`z-10`) and controls (`z-20`) |
-| Mapbox exception unmounting the page | **Now impossible** | `MapErrorBoundary` isolates the map subtree |
-| `MAPBOX_TOKEN` interfering | **Could not affect the map** | The map read `NEXT_PUBLIC_MAPBOX_TOKEN` only. `MAPBOX_TOKEN` has since been removed entirely — the app now requires exactly one variable |
-
-**Both account-level hypotheses are now DISPROVEN (2026-08-16).** The token was
-extracted from the deployed production bundle and tested directly against every
-Mapbox endpoint the map depends on, with and without a `Referer` header for the
-deployment hostname:
-
-| Resource | With Referer | No Referer | Meaning |
-|---|---|---|---|
-| TileJSON (`/v4/mapbox.mapbox-streets-v8.json`) | **200** | 200 | `styles:tiles` present |
-| Vector tile (`/v4/…/12/935/1686.mvt`) | **200** | 200 | tiles genuinely load |
-| Glyphs (`/fonts/v1/…/DIN Pro Medium`) | **200** | 200 | `fonts:read` present |
-| Geocoding (`/search/geocode/v6`) | **200** | 200 | search would work |
-| Stock style (`/styles/v1/mapbox/dark-v11`) | **200** | 200 | token fully valid |
-
-Identical results with and without the `Referer` header prove there are **no URL
-restrictions** on this token. **No Mapbox account action is required.**
-
-~~1. Token lacks the `styles:tiles` scope.~~ **Disproven — 200.**
-~~2. Token URL restrictions exclude the hostname.~~ **Disproven — 200 either way.**
-
-3. ~~The map renders correctly but **reads as black**.~~ → **FIXED IN CODE
-   (2026-08-16).** This was the only candidate addressable from the repository,
-   and on inspection the numbers were damning: roads ran `#191920`–`#525263`
-   against a `#05050A` ground (≈12% luminance separation at the widest point),
-   fog began compressing toward near-black at `range: [0.8, …]` under a 62°
-   pitch, and the scrims laid 0.82/0.93 black over ~65% of a phone viewport.
-   A perfectly functioning map would have read as a black rectangle.
-
-**Legibility revision (2026-08-16)** — a correction against the original
-atlasNight brief, which specified "highly legible, built for navigation":
-
-| Element | Before | After |
-|---|---|---|
-| Road ladder | `#191920` → `#525263` | `#2A2A33` → `#78788C` |
-| Water | `#0A0917` | `#12102A` |
-| Buildings | `#101017` | `#191922` |
-| Road labels | `#8F8C99` | `#ADAAB6` |
-| Fog range / color | `[0.8, 9]` / `#0A0912` | `[1.6, 14]` / `#191630` |
-| Scrims | 0.82 / 0.93 black | 0.68 / 0.82 black |
-
-The ground stays near-black — obsidian is about depth, not invisibility. A test
-now enforces a minimum luminance separation for every road class against the
-background, so the map cannot silently become unreadable again.
-
-**Where this leaves the incident.** Token, scopes, restrictions, style validity,
-CSS wiring, stacking, and Tailwind output are all eliminated by direct evidence.
-The legibility defect — the one candidate that was both real and fixable from
-code — has been fixed and deployed. The remaining unknown is narrow: whether a
-real browser draws a frame.
-
-`/debug/mapbox` now answers that objectively. It mounts each layer in turn and
-**samples the actual framebuffer**, which distinguishes the two failures that
-look identical in a screenshot:
-
-- `flat` — one uniform color: the style applied, tiles never drew
-- `unreadable` — real structure present, nothing above the visible threshold
-- `rendered` — genuine geography
-
-That distinction is what kept this incident alive for three passes.
-
----
-
-## Fresh-deployment readiness (2026-08-16)
-
-A pass to remove every avoidable source of deployment ambiguity before a new
-Vercel project is created.
-
-**Verified by building twice**, which is the only way to prove both halves of
-the fresh-deploy contract:
-
-| Build | Result |
+| Surface | What it answers |
 |---|---|
-| **No environment variables at all** | Builds clean. `/`, `/vehicles`, `/debug/mapbox`, `/manifest.webmanifest`, `/icon` all 200. `/api/search` returns `503 {"failure":"not-configured"}` — honest, not a crash. **Zero token literals in the bundle.** |
-| **With a probe token** | Builds clean. Token inlined into client chunks (statically analyzable access confirmed). All routes 200. **No full token in any HTML.** |
+| `/debug/mapbox` → **Probe Mapbox endpoints** | Requests every resource the style needs from the page itself, so the real `Origin`/`Referer` are sent and URL restrictions are tested exactly as the deployment experiences them. Prints HTTP status, resource kind, sanitized endpoint, and Mapbox's own message, with an eight-class verdict that keeps authentication, tile, font, style, source-authorization, and application failures distinct. |
+| `/debug/mapbox` → **Run all 6 levels** | Mounts raw SDK → atlasNight → Atlas provider → provider + markers → the Command Center composite, samples the actual framebuffer, and reports whether pixels are `rendered`, `flat`, or `unreadable`. |
+| `?atlasdebug=map` on any product route | The same environment, stage trace, and last-error evidence as an on-screen panel — DevTools is not required to diagnose a phone. |
 
-**Changes:**
-
-| Area | Before | After |
-|---|---|---|
-| Mapbox env variables | 2 (`NEXT_PUBLIC_MAPBOX_TOKEN` + optional `MAPBOX_TOKEN`) | **1** — `MAPBOX_TOKEN` removed; `/api/search` uses the public token |
-| Token accessor | `getMapboxToken()` | `getPublicMapboxToken()` — one statically-analyzable literal access |
-| Mapbox CSS | dynamic `import()` (worked, but relied on bundler internals) | **static import** in `MapSurface` — determinism over 40KB |
-| Failure taxonomy | 6 reasons; every 401/403 collapsed to "unauthorized" | **10 reasons**, each implying a different action: `missing-token`, `invalid-token`, `forbidden`, `tile-access-denied`, `style-access-denied`, `request-rejected`, `network`, `timeout`, `webgl-unsupported`, `unknown` |
-| Default camera | module-private literal | exported `DEFAULT_CAMERA` + `isValidCamera()`, with tests for lat/lon order, null-island, and zoom sanity |
-| Old hostname | referenced in docs | removed; diagnostics read `window.location.hostname` live |
-
-**Confirmed for a fresh import:** Next.js auto-detected, root `./`, default
-build/install commands, no `vercel.json`, no `.vercel` committed, no stale
-deployment metadata, `engines.node >=20.9.0` (permissive — Vercel picks its
-default), single `mapbox-gl@3.28.1` with no duplicates, no secrets in tracked
-or untracked files.
-
-**Map rendering does not depend on geolocation.** The configuration memo has
-empty dependencies and there are zero location-conditional renders; the camera
-only moves once a genuine fix arrives.
+**Token identity without disclosure.** Both surfaces report the token's
+account, its `pk.`/`sk.` classification, its length, a three-character prefix,
+and a SHA-256 first-12 fingerprint reproducible as
+`printf %s "$TOKEN" | shasum -a 256 | cut -c1-12`. Length and prefix alone
+cannot tell two tokens from one account apart — every default public token for
+an account has the same shape — which is exactly why the fingerprint exists.
+The full token is never printed, and request URLs are recorded with
+`access_token` and `sku` **replaced**, never truncated.
 
 ---
 

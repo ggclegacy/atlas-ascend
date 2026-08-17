@@ -437,6 +437,39 @@ describe("MapboxHandle watchdog", () => {
     handle.destroy();
   });
 
+  it("does not strand the surface when a slow style lands after the timeout", () => {
+    // On a slow mobile connection the style can arrive after the 15s watchdog
+    // has already declared failure. The map is fine; the recorded failure is
+    // not. It must be withdrawn, or it gets replayed to every later subscriber
+    // and hides any genuine failure that follows.
+    const map = createFakeMap();
+    const handle = createHandle(map);
+
+    const first = vi.fn();
+    handle.on("error", first);
+    vi.advanceTimersByTime(16_000);
+    expect((first.mock.calls[0]?.[0] as MapUnavailableError).reason).toBe("timeout");
+
+    map.emit("load");
+
+    const late = vi.fn();
+    handle.on("error", late);
+    expect(late, "a withdrawn timeout must not be replayed").not.toHaveBeenCalled();
+
+    const ready = vi.fn();
+    handle.on("ready", ready);
+    expect(ready).toHaveBeenCalledTimes(1);
+
+    // And a real failure arriving afterwards must still get through.
+    const after = vi.fn();
+    handle.on("error", after);
+    map.emit("error", { error: Object.assign(new Error("Unauthorized"), { status: 401 }) });
+    expect(after).toHaveBeenCalledTimes(1);
+    expect((after.mock.calls[0]?.[0] as MapUnavailableError).reason).toBe("invalid-token");
+
+    handle.destroy();
+  });
+
   it("does not fire once the map has loaded", () => {
     const map = createFakeMap();
     const handle = createHandle(map);

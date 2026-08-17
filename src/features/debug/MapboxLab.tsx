@@ -25,7 +25,6 @@ import {
 import type { MapHandle, MapInspection } from "@/map/provider";
 import { pitchFor } from "@/map/types";
 import {
-  MIN_ROAD_GROUND_DELTA,
   afterScrim,
   clearBandFraction,
   luma,

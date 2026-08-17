@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { PlaceSuggestion } from "@/destinations/types";
+import { getPublicMapboxToken } from "@/lib/env";
 
 /**
  * Place search — server route.
@@ -14,10 +15,15 @@ import type { PlaceSuggestion } from "@/destinations/types";
  * nothing today (the token is public either way, and geocoding runs on the
  * same account) while adding a variable that made deployment state ambiguous.
  *
- * When it becomes worth separating them — independent rate limits, separate
- * rotation, per-surface billing attribution — reintroduce a server-only token
- * *here only*. Nothing else needs to change: this function is the single point
- * at which the geocoder's credential is resolved.
+ * The credential comes from `getPublicMapboxToken()` — the same accessor the
+ * map uses — rather than reading `process.env` again here. A second reader is
+ * a second place for the trim/empty rules to drift, and this project has
+ * already lost time to uncertainty about which variable a deployment was
+ * actually using. One variable, one accessor, no exceptions.
+ *
+ * When it becomes worth separating the geocoder's credential from the map's —
+ * independent rate limits, separate rotation, per-surface billing attribution —
+ * this line is the single point to change.
  */
 
 // Node runtime rather than edge: the Edge Runtime is deprecated in Next 16,
@@ -26,12 +32,6 @@ import type { PlaceSuggestion } from "@/destinations/types";
 export const runtime = "nodejs";
 
 const MAPBOX_GEOCODE = "https://api.mapbox.com/search/geocode/v6/forward";
-
-function token(): string | null {
-  const value = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-  if (value && value.trim().length > 0) return value.trim();
-  return null;
-}
 
 interface GeocodeFeature {
   id?: string;
@@ -53,7 +53,7 @@ export async function GET(request: Request): Promise<Response> {
     return NextResponse.json({ ok: true, suggestions: [] });
   }
 
-  const accessToken = token();
+  const accessToken = getPublicMapboxToken();
   if (accessToken === null) {
     // An honest, machine-readable "not configured" — not an empty result set
     // pretending the search simply found nothing.

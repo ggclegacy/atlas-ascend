@@ -238,6 +238,18 @@ export class MapboxHandle implements MapHandle {
     map.on("load", () => {
       this.isReady = true;
       this.clearWatchdog();
+
+      // A timeout is a "not yet", not a "never". On a slow mobile connection
+      // the style can land after the watchdog has already fired, and the
+      // surface recovers because `ready` is emitted here unconditionally — but
+      // the recorded fatal error would survive, get replayed to any later
+      // subscriber, and block a genuine failure from being reported
+      // afterwards. Clearing it keeps the recorded state equal to reality.
+      // Auth failures are never cleared: those do not resolve themselves.
+      if (this.fatalError?.reason === "timeout") {
+        this.fatalError = null;
+      }
+
       stage("map-load", `canvas ${describeContainer(container)}`);
       this.emit("ready");
     });
