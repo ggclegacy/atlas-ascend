@@ -307,6 +307,9 @@ function fakeMap() {
     on(event: string, handler: (p?: unknown) => void) {
       handlers.set(event, [...(handlers.get(event) ?? []), handler]);
     },
+    once(event: string, handler: (p?: unknown) => void) {
+      handlers.set(event, [...(handlers.get(event) ?? []), handler]);
+    },
     emit(event: string, payload?: unknown) {
       for (const h of handlers.get(event) ?? []) h(payload);
     },
@@ -396,12 +399,15 @@ const CONFIG = {
 
 async function makeHandle(map: ReturnType<typeof fakeMap>) {
   const { MapboxHandle } = await import("@/map/mapbox/MapboxMapProvider");
-  return new MapboxHandle(
+  const handle = new MapboxHandle(
     map as never,
     { Marker: FakeMarker } as never,
     CONFIG,
     { getBoundingClientRect: () => ({ width: 390, height: 844 }) } as never,
   );
+  // Layers may only be attached after `style.load`, exactly as on a real map.
+  map.emit("style.load");
+  return handle;
 }
 
 describe("route lifecycle leaves nothing orphaned", () => {
@@ -466,6 +472,50 @@ describe("route lifecycle leaves nothing orphaned", () => {
     // Unknown ids are ignored rather than clearing the route.
     handle.selectRoute("nope");
     expect(handle.inspect().route.primaryRouteId).toBe("b");
+
+    handle.destroy();
+  });
+
+  it("attaches layers for a route set before the style was ready", async () => {
+    // THE RACE, observed in the browser. `setRoutes` landing before the style
+    // is ready must not silently attach nothing: the preview sheet showed a
+    // correct 163-vertex route while the map had zero route layers, and there
+    // was no error anywhere because every individual step had "succeeded".
+    const { MapboxHandle } = await import("@/map/mapbox/MapboxMapProvider");
+    const map = fakeMap();
+    const handle = new MapboxHandle(
+      map as never,
+      { Marker: FakeMarker } as never,
+      CONFIG,
+      { getBoundingClientRect: () => ({ width: 390, height: 844 }) } as never,
+    );
+
+    // No style.load yet — the map is still starting up.
+    handle.setRoutes([route(LINE, "early")], "early");
+    expect(map.layers, "nothing may be attached before style.load").toHaveLength(0);
+    expect(handle.inspect().route.primaryRouteId).toBe("early");
+
+    // The style arrives; the pending route must be drawn without being re-set.
+    map.emit("style.load");
+    expect(map.layers).toHaveLength(ROUTE_LAYER_IDS.length);
+    const primary = map.sources.get(ROUTE_SOURCE_PRIMARY)!.data as {
+      geometry?: { coordinates: unknown[] };
+    };
+    expect(primary.geometry?.coordinates.length).toBe(LINE.length);
+
+    handle.destroy();
+  });
+
+  it("does not gate attachment on tiles still loading", async () => {
+    // `isStyleLoaded()` reports false while tiles arrive — including during
+    // the camera flight that frames a new route. Gating on it was the bug.
+    const map = fakeMap();
+    map.isStyleLoaded = () => false;
+    const handle = await makeHandle(map);
+
+    handle.setRoutes([route(LINE, "a")], "a");
+    expect(map.layers).toHaveLength(ROUTE_LAYER_IDS.length);
+    expect(handle.inspect().route.layerCount).toBe(ROUTE_LAYER_IDS.length);
 
     handle.destroy();
   });

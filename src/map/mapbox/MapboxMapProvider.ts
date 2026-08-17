@@ -242,6 +242,10 @@ export class MapboxHandle implements MapHandle {
   private routes: readonly AtlasRoute[] = [];
   private primaryRouteId: string | null = null;
   private routeLayersAttached = false;
+  /** Set once `style.load` has fired; layers may not be added before then. */
+  private styleReady = false;
+  /** A route set before the style was ready, awaiting replay. */
+  private pendingRouteApply = false;
   private originMarker: Marker | null = null;
 
   private readonly listeners: {
@@ -260,6 +264,8 @@ export class MapboxHandle implements MapHandle {
     container: HTMLElement,
   ) {
     map.on("style.load", () => {
+      this.styleReady = true;
+      this.pendingRouteApply = false;
       stage("style-load");
       // A route set before the style finished loading could not be attached at
       // the time. Replay it now rather than leaving the map silently routeless
@@ -636,8 +642,20 @@ export class MapboxHandle implements MapHandle {
    * rather than lost.
    */
   private ensureRouteLayers(): boolean {
-    if (!this.map.isStyleLoaded()) return false;
     if (this.routeLayersAttached) return true;
+
+    // Gate on `style.load` having fired, NOT on `isStyleLoaded()`.
+    //
+    // `isStyleLoaded()` also reports false while tiles are still arriving —
+    // including during the camera flight that frames a new route. Gating on it
+    // meant `setRoutes` could land in that window, silently attach nothing,
+    // and never retry: observed in the browser as a preview sheet showing a
+    // correct 163-vertex route with zero layers on the map. Adding layers only
+    // requires the style itself to exist, which `style.load` establishes.
+    if (!this.styleReady) {
+      this.pendingRouteApply = true;
+      return false;
+    }
 
     try {
       for (const sourceId of ROUTE_SOURCE_IDS) {
@@ -665,6 +683,16 @@ export class MapboxHandle implements MapHandle {
         "route-layers",
         error instanceof Error ? error.message : "could not attach route layers",
       );
+      // Try again when the map next goes quiet. A route that exists in state
+      // but not on the map is the exact failure this diagnostic layer was
+      // built to catch, and it must not be able to persist silently.
+      this.pendingRouteApply = true;
+      this.map.once("idle", () => {
+        if (!this.destroyed && this.pendingRouteApply) {
+          this.pendingRouteApply = false;
+          this.applyRoutes();
+        }
+      });
       return false;
     }
   }
@@ -710,6 +738,7 @@ export class MapboxHandle implements MapHandle {
       // reporting. `map.remove()` releases it all regardless.
     }
     this.routeLayersAttached = false;
+    this.pendingRouteApply = false;
   }
 
   frameBounds(

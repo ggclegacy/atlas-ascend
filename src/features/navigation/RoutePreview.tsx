@@ -61,7 +61,7 @@ export function RoutePreview({
 
   return (
     <section
-      className="atlas-glass pointer-events-auto flex flex-col gap-4 rounded-[26px] px-5 pb-5 pt-4"
+      className="atlas-glass-panel pointer-events-auto flex flex-col gap-4 rounded-[26px] px-5 pb-5 pt-4"
       style={{ minHeight: SHEET_MIN_HEIGHT }}
       aria-label="Route preview"
     >
@@ -208,7 +208,7 @@ export function RouteLoading({
 }) {
   return (
     <section
-      className="atlas-glass pointer-events-auto flex flex-col gap-4 rounded-[26px] px-5 pb-5 pt-4"
+      className="atlas-glass-panel pointer-events-auto flex flex-col gap-4 rounded-[26px] px-5 pb-5 pt-4"
       style={{ minHeight: SHEET_MIN_HEIGHT }}
       aria-label="Calculating route"
       aria-busy="true"
@@ -264,7 +264,7 @@ export function RouteFailure({
 }) {
   return (
     <section
-      className="atlas-glass pointer-events-auto flex flex-col gap-3.5 rounded-[26px] px-5 pb-5 pt-4"
+      className="atlas-glass-panel pointer-events-auto flex flex-col gap-3.5 rounded-[26px] px-5 pb-5 pt-4"
       aria-label="Route unavailable"
     >
       <header className="flex items-start gap-3">
@@ -335,7 +335,7 @@ export function NavigationStarting({
 
   return (
     <section
-      className="atlas-glass pointer-events-auto flex flex-col gap-3.5 rounded-[26px] px-5 pb-5 pt-4"
+      className="atlas-glass-panel pointer-events-auto flex flex-col gap-3.5 rounded-[26px] px-5 pb-5 pt-4"
       aria-label="Navigation session ready"
     >
       <div className="flex items-baseline justify-between gap-3">

@@ -128,7 +128,15 @@ export function compareToFastest(
   routes: readonly AtlasRoute[],
 ): string {
   const fastest = Math.min(...routes.map((r) => r.durationSeconds));
-  const difference = Math.round((route.durationSeconds - fastest) / 60);
-  if (difference <= 0) return "Fastest";
-  return `+${difference} min`;
+  if (route.durationSeconds <= fastest) return "Fastest";
+
+  // Compared in *displayed* minutes, not raw seconds.
+  //
+  // Rounding each separately lets a chip read "+1 min" beside two routes that
+  // both display "9 min" — observed in the browser, and it reads as a bug
+  // because from the driver's point of view it is one. Two routes that show
+  // the same time are the same time.
+  const difference =
+    Math.round(route.durationSeconds / 60) - Math.round(fastest / 60);
+  return difference <= 0 ? "Similar" : `+${difference} min`;
 }

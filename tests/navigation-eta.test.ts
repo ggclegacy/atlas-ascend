@@ -122,7 +122,9 @@ describe("display precision", () => {
   });
 
   it("formats durations the way a driver reads them", () => {
-    expect(formatDuration(30)).toBe("< 1 min");
+    // Under half a minute is the only case that cannot honestly round to "1".
+    expect(formatDuration(20)).toBe("< 1 min");
+    expect(formatDuration(30)).toBe("1 min");
     expect(formatDuration(90)).toBe("2 min");
     expect(formatDuration(1_500)).toBe("25 min");
     expect(formatDuration(3_600)).toBe("1 hr");

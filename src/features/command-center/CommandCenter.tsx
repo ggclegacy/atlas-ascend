@@ -386,6 +386,9 @@ export function CommandCenter() {
 
   const activeVehicle = vehicles[0] ?? null;
 
+  /** True once a destination is committed to — anything past browsing. */
+  const navActive = nav.phase !== "idle" && nav.phase !== "searching";
+
   const simulationNotes = useMemo(() => {
     const notes: string[] = [];
     if (vehicles.length > 0) notes.push("Vehicles stored on this device only");
@@ -512,14 +515,23 @@ export function CommandCenter() {
             onRetry={retryRoute}
           />
 
-          <DestinationRail
-            saved={saved}
-            recents={recents}
-            onSelect={selectDestination}
-            onBrowse={() => setSheetOpen(true)}
-          />
+          {/* Browsing controls retreat once a route is on screen.
+              The rail and the prompt bar exist to *find* a destination; once
+              one is chosen the only decisions left are which route and whether
+              to drive it. Leaving them stacked under the preview competes with
+              that decision and pushes the sheet up into the map. */}
+          {!navActive && (
+            <>
+              <DestinationRail
+                saved={saved}
+                recents={recents}
+                onSelect={selectDestination}
+                onBrowse={() => setSheetOpen(true)}
+              />
 
-          <PromptBar onOpen={() => setSheetOpen(true)} />
+              <PromptBar onOpen={() => setSheetOpen(true)} />
+            </>
+          )}
         </div>
       </div>
 
