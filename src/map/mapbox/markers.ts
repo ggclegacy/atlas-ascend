@@ -157,6 +157,49 @@ export function createDestinationElement(): HTMLElement {
   return root;
 }
 
+/**
+ * Route origin marker — a machined gold annulus.
+ *
+ * Deliberately not a pin. A pin points at somewhere you are going; the origin
+ * is a place the route *leaves from*, and during a drive it is usually behind
+ * you and no longer actionable. So it reads as a survey mark set into the
+ * ground: flat, precise, centred on its coordinate rather than balanced above
+ * it, and quiet enough that it never competes with the destination.
+ *
+ * The dark core matters — a solid gold dot at this size reads as a second
+ * destination at a glance, which is exactly the confusion to avoid.
+ */
+export function createRouteOriginElement(): HTMLElement {
+  const root = document.createElement("div");
+  root.setAttribute("aria-label", "Route start");
+  Object.assign(root.style, {
+    position: "relative",
+    width: "0px",
+    height: "0px",
+    pointerEvents: "none",
+  });
+
+  const ring = document.createElement("div");
+  Object.assign(ring.style, {
+    position: "absolute",
+    left: "50%",
+    top: "50%",
+    width: "16px",
+    height: "16px",
+    marginLeft: "-8px",
+    marginTop: "-8px",
+    borderRadius: "50%",
+    background: "#05050a",
+    border: `2px solid ${GOLD}`,
+    // A hairline of black outside the gold keeps the ring legible against a
+    // bright road fill directly underneath it.
+    boxShadow: `0 0 0 1px rgba(0,0,0,0.65), 0 0 6px ${hexToRgba(GOLD_BRIGHT, 0.35)}`,
+  });
+
+  root.appendChild(ring);
+  return root;
+}
+
 function hexToRgba(hex: string, alpha: number): string {
   const value = hex.replace("#", "");
   const r = parseInt(value.slice(0, 2), 16);

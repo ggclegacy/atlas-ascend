@@ -1,3 +1,4 @@
+import type { AtlasRoute } from "@/routing/types";
 import type {
   CameraTransition,
   Coordinate,
@@ -88,6 +89,29 @@ export interface MapInspection {
   readonly zoom: number | null;
   readonly pitch: number | null;
   readonly bearing: number | null;
+  /** Route rendering state. See `RouteRenderState`. */
+  readonly route: RouteRenderState;
+}
+
+/**
+ * What the map is currently drawing for the route.
+ *
+ * Reported vendor-neutrally so a diagnostic can answer "is the route actually
+ * on the map" without anyone opening DevTools — the same reasoning that put
+ * canvas size and layer count in `MapInspection`. A route that is set in
+ * application state but absent from the map is exactly the class of failure
+ * this project has already lost days to.
+ */
+export interface RouteRenderState {
+  /** Both route sources exist on the style. */
+  readonly sourcesPresent: boolean;
+  /** How many of the route layers are attached. */
+  readonly layerCount: number;
+  /** Vertices in the primary route currently drawn. */
+  readonly primaryVertexCount: number;
+  /** Id of the route drawn as primary, or `null` when none. */
+  readonly primaryRouteId: string | null;
+  readonly alternativeCount: number;
 }
 
 /** Events a mounted map can emit back to the application. */
@@ -116,6 +140,34 @@ export interface MapHandle {
   setUserLocation(coordinate: Coordinate | null, heading: number | null): void;
   /** Show or clear the destination marker. */
   setDestination(coordinate: Coordinate | null): void;
+
+  /**
+   * Draw a set of routes, with one of them primary.
+   *
+   * Takes Atlas routes and nothing else — no GeoJSON, no source or layer
+   * names, no vendor objects. Replacing the set is a single call rather than a
+   * clear followed by a set, so the map never passes through an empty frame
+   * mid-reroute.
+   *
+   * `primaryId` must identify one of `routes`; an id that is not present, or
+   * `null` when routes exist, promotes the first route rather than drawing
+   * none — the driver seeing the wrong emphasis is recoverable, seeing no
+   * route is not. Routes with unusable geometry are skipped, not drawn
+   * partially.
+   */
+  setRoutes(routes: readonly AtlasRoute[], primaryId: string | null): void;
+
+  /**
+   * Promote an already-drawn route to primary.
+   *
+   * Separate from `setRoutes` because choosing between offered alternates must
+   * not re-request or re-decode anything — it is a restyle of geometry the map
+   * already holds. Unknown ids are ignored.
+   */
+  selectRoute(routeId: string): void;
+
+  /** Remove every route. Safe to call when none is drawn. */
+  clearRoutes(): void;
   /** Recompute size after a container or viewport change. */
   resize(): void;
   /** Diagnostic snapshot. Cheap; safe to poll. */

@@ -8,6 +8,7 @@ import {
   type MapProviderMaturity,
   MapUnavailableError,
   type MapUnavailableReason,
+  type RouteRenderState,
 } from "../provider";
 import type {
   CameraTransition,
@@ -16,7 +17,8 @@ import type {
   MapConfiguration,
   MapPerspective,
 } from "../types";
-import { pitchFor } from "../types";
+import { isValidCoordinate, pitchFor } from "../types";
+import type { AtlasRoute } from "@/routing/types";
 import { atlasNightStyle } from "./atlas-night";
 import {
   classifyResource,
@@ -33,7 +35,23 @@ import {
   stageFailed,
   warn,
 } from "./diagnostics";
-import { createDestinationElement, createUserPuckElement } from "./markers";
+import {
+  createDestinationElement,
+  createRouteOriginElement,
+  createUserPuckElement,
+} from "./markers";
+import {
+  ROUTE_INSERT_BEFORE,
+  ROUTE_LAYER_IDS,
+  ROUTE_SOURCE_ALTERNATES,
+  ROUTE_SOURCE_IDS,
+  ROUTE_SOURCE_PRIMARY,
+  emptyFeatureCollection,
+  featureCollectionFor,
+  lineStringFor,
+  routeLayerSpecs,
+  routeSourceSpec,
+} from "./route-layers";
 
 /**
  * How long to wait for the style to finish loading before declaring failure.
@@ -218,6 +236,12 @@ export class MapboxHandle implements MapHandle {
   /** One body probe per map. A failing token fails every request it makes. */
   private probedAuthFailure = false;
 
+  /** Routes currently drawn, primary included. */
+  private routes: readonly AtlasRoute[] = [];
+  private primaryRouteId: string | null = null;
+  private routeLayersAttached = false;
+  private originMarker: Marker | null = null;
+
   private readonly listeners: {
     [K in keyof MapEvents]: Set<MapEvents[K]>;
   } = {
@@ -233,7 +257,13 @@ export class MapboxHandle implements MapHandle {
     private config: MapConfiguration,
     container: HTMLElement,
   ) {
-    map.on("style.load", () => stage("style-load"));
+    map.on("style.load", () => {
+      stage("style-load");
+      // A route set before the style finished loading could not be attached at
+      // the time. Replay it now rather than leaving the map silently routeless
+      // while application state says otherwise.
+      if (this.routes.length > 0) this.applyRoutes();
+    });
 
     map.on("load", () => {
       this.isReady = true;
@@ -486,12 +516,211 @@ export class MapboxHandle implements MapHandle {
     }
   }
 
+  // -------------------------------------------------------------------------
+  // Routes
+  // -------------------------------------------------------------------------
+
+  setRoutes(routes: readonly AtlasRoute[], primaryId: string | null): void {
+    if (this.destroyed) return;
+
+    // Geometry is validated once, here, and never reinterpreted downstream.
+    // A route whose line cannot be drawn is dropped rather than half-drawn:
+    // a line that stops early is followable, and therefore dangerous.
+    const drawable = routes.filter((route) => isDrawableRoute(route));
+    const rejected = routes.length - drawable.length;
+    if (rejected > 0) {
+      warn(`${rejected} route(s) had unusable geometry and were not drawn`);
+    }
+
+    if (drawable.length === 0) {
+      this.clearRoutes();
+      return;
+    }
+
+    // An unknown or absent primary promotes the first route. Emphasis on the
+    // wrong route is recoverable; drawing nothing is not.
+    const primary =
+      drawable.find((route) => route.id === primaryId) ?? drawable[0]!;
+
+    this.routes = drawable;
+    this.primaryRouteId = primary.id;
+    this.applyRoutes();
+
+    // The route's own endpoints, not the requested coordinates. The router
+    // snaps both to the road network, so these are where the drive actually
+    // starts and ends — up to a block away from a rooftop geocode.
+    this.setRouteOrigin(primary.geometry[0]!);
+    this.setDestination(primary.geometry[primary.geometry.length - 1]!);
+  }
+
+  /** Places or moves the route-start marker. */
+  private setRouteOrigin(coordinate: Coordinate): void {
+    if (this.originMarker === null) {
+      this.originMarker = new this.mapboxgl.Marker({
+        element: createRouteOriginElement(),
+        // Centred on the coordinate: it marks a point on the ground, not a
+        // pin balanced above one.
+        anchor: "center",
+      })
+        .setLngLat([coordinate.longitude, coordinate.latitude])
+        .addTo(this.map);
+    } else {
+      this.originMarker.setLngLat([coordinate.longitude, coordinate.latitude]);
+    }
+  }
+
+  selectRoute(routeId: string): void {
+    if (this.destroyed) return;
+    if (!this.routes.some((route) => route.id === routeId)) return;
+    if (this.primaryRouteId === routeId) return;
+
+    this.primaryRouteId = routeId;
+    // Only the two source payloads change. The layers, their paint, and their
+    // position in the stack are untouched, so switching alternates is a data
+    // update rather than a restyle.
+    this.applyRoutes();
+  }
+
+  clearRoutes(): void {
+    if (this.destroyed) return;
+    this.routes = [];
+    this.primaryRouteId = null;
+    // The origin marker belongs to the route and goes with it. The destination
+    // marker does not — it is owned by `setDestination`, and survives a route
+    // being cleared because the destination itself has not changed.
+    this.originMarker?.remove();
+    this.originMarker = null;
+
+    // The layers stay attached and are fed empty collections. Removing and
+    // re-adding six layers on every reroute costs a style recompilation and
+    // can drop a frame at exactly the wrong moment.
+    this.writeRouteSource(ROUTE_SOURCE_PRIMARY, emptyFeatureCollection());
+    this.writeRouteSource(ROUTE_SOURCE_ALTERNATES, emptyFeatureCollection());
+  }
+
+  /**
+   * Pushes the current route set into the map.
+   *
+   * Adds the sources and layers on first use. Everything after that is a
+   * `setData` call — no layer churn, no React involvement, and no geometry
+   * animation driven by rerenders.
+   */
+  private applyRoutes(): void {
+    if (!this.ensureRouteLayers()) return;
+
+    const primary = this.routes.find((r) => r.id === this.primaryRouteId);
+    if (!primary) return;
+
+    this.writeRouteSource(
+      ROUTE_SOURCE_PRIMARY,
+      lineStringFor(primary.geometry),
+    );
+    this.writeRouteSource(
+      ROUTE_SOURCE_ALTERNATES,
+      featureCollectionFor(
+        this.routes
+          .filter((route) => route.id !== primary.id)
+          .map((route) => route.geometry),
+      ),
+    );
+  }
+
+  /**
+   * Attaches the route sources and layers, once.
+   *
+   * Returns false when the style is not ready yet — Mapbox throws if a layer
+   * is added before `style.load`, and `setRoutes` can legitimately be called
+   * in that window. The pending set is replayed by the `style.load` handler
+   * rather than lost.
+   */
+  private ensureRouteLayers(): boolean {
+    if (!this.map.isStyleLoaded()) return false;
+    if (this.routeLayersAttached) return true;
+
+    try {
+      for (const sourceId of ROUTE_SOURCE_IDS) {
+        if (!this.map.getSource(sourceId)) {
+          this.map.addSource(sourceId, routeSourceSpec() as never);
+        }
+      }
+
+      // Above roads and extrusions, below every label. A route behind a tower
+      // cannot be followed; a route painted over the street name removes the
+      // word the driver needed.
+      const before = this.routeInsertBeforeId();
+
+      for (const layer of routeLayerSpecs()) {
+        if (!this.map.getLayer(layer.id)) {
+          this.map.addLayer(layer as never, before);
+        }
+      }
+
+      this.routeLayersAttached = true;
+      stage("route-layers", `${ROUTE_LAYER_IDS.length} layers before ${before ?? "top"}`);
+      return true;
+    } catch (error) {
+      stageFailed(
+        "route-layers",
+        error instanceof Error ? error.message : "could not attach route layers",
+      );
+      return false;
+    }
+  }
+
+  /** The layer the route stack is inserted beneath. */
+  private routeInsertBeforeId(): string | undefined {
+    if (this.map.getLayer(ROUTE_INSERT_BEFORE)) return ROUTE_INSERT_BEFORE;
+
+    // atlasNight renamed or replaced: fall back to the first symbol layer, so
+    // labels still win. Failing that, the top of the stack — visible above
+    // labels, which is the less damaging of the two ways to be wrong.
+    const style = this.map.getStyle();
+    const firstSymbol = style?.layers?.find((layer) => layer.type === "symbol");
+    if (firstSymbol) {
+      warn(`route insertion point "${ROUTE_INSERT_BEFORE}" missing; using ${firstSymbol.id}`);
+      return firstSymbol.id;
+    }
+
+    warn("no symbol layer found; route will draw above labels");
+    return undefined;
+  }
+
+  private writeRouteSource(sourceId: string, data: unknown): void {
+    const source = this.map.getSource(sourceId) as
+      | { setData?: (data: unknown) => void }
+      | undefined;
+    source?.setData?.(data);
+  }
+
+  /** Detaches every route layer and source this module owns. */
+  private removeRouteLayers(): void {
+    if (!this.routeLayersAttached) return;
+
+    try {
+      for (const id of ROUTE_LAYER_IDS) {
+        if (this.map.getLayer(id)) this.map.removeLayer(id);
+      }
+      for (const id of ROUTE_SOURCE_IDS) {
+        if (this.map.getSource(id)) this.map.removeSource(id);
+      }
+    } catch {
+      // The map is being torn down; nothing here is recoverable or worth
+      // reporting. `map.remove()` releases it all regardless.
+    }
+    this.routeLayersAttached = false;
+  }
+
   resize(): void {
     if (!this.destroyed) this.map.resize();
   }
 
   inspect(): MapInspection {
-    return inspectMapboxMap(this.map, this.destroyed);
+    const primary = this.routes.find((r) => r.id === this.primaryRouteId);
+    return inspectMapboxMap(this.map, this.destroyed, {
+      primaryRouteId: this.primaryRouteId,
+      primaryVertexCount: primary?.geometry.length ?? 0,
+      alternativeCount: Math.max(0, this.routes.length - 1),
+    });
   }
 
   on<K extends keyof MapEvents>(event: K, handler: MapEvents[K]): () => void {
@@ -520,6 +749,14 @@ export class MapboxHandle implements MapHandle {
     this.resizeObserver = null;
     this.userMarker?.remove();
     this.destinationMarker?.remove();
+    this.originMarker?.remove();
+    this.originMarker = null;
+    // Explicit, even though `map.remove()` disposes the style wholesale — the
+    // same teardown path runs when a style is swapped, where it is the only
+    // thing preventing orphaned sources accumulating.
+    this.removeRouteLayers();
+    this.routes = [];
+    this.primaryRouteId = null;
     this.map.remove();
     stage("destroy");
   }
@@ -696,9 +933,60 @@ export function isAuthFailure(reason: MapUnavailableReason): boolean {
  * for a raw Mapbox map as for one behind the Atlas abstraction — which is what
  * makes an A/B comparison between the two meaningful.
  */
+/**
+ * Whether a route's geometry can be drawn.
+ *
+ * A route is validated once, at the boundary, and never reinterpreted by the
+ * UI. Two vertices is the floor for a line; anything below it renders nothing
+ * while still reporting as "a route", which is the worst of both. Coordinates
+ * are range-checked because a single out-of-range vertex does not fail — it
+ * stretches the line across the world and takes the camera framing with it.
+ *
+ * Exported for testing.
+ */
+export function isDrawableRoute(route: AtlasRoute): boolean {
+  const { geometry } = route;
+  if (!Array.isArray(geometry) || geometry.length < 2) return false;
+
+  let distinct = 0;
+  let previous: Coordinate | null = null;
+
+  for (const point of geometry) {
+    if (!isValidCoordinate(point)) return false;
+    // Consecutive steps share a boundary vertex, so exact duplicates are
+    // expected and harmless. A line of nothing but duplicates is degenerate.
+    if (
+      previous === null ||
+      previous.latitude !== point.latitude ||
+      previous.longitude !== point.longitude
+    ) {
+      distinct++;
+    }
+    previous = point;
+  }
+
+  return distinct >= 2;
+}
+
+/** Route state the map cannot report on its own. */
+interface RouteHandleState {
+  readonly primaryRouteId: string | null;
+  readonly primaryVertexCount: number;
+  readonly alternativeCount: number;
+}
+
+const NO_ROUTE: RouteRenderState = {
+  sourcesPresent: false,
+  layerCount: 0,
+  primaryVertexCount: 0,
+  primaryRouteId: null,
+  alternativeCount: 0,
+};
+
 export function inspectMapboxMap(
   map: MapboxMap,
   destroyed = false,
+  routeState?: RouteHandleState,
 ): MapInspection {
   const empty: MapInspection = {
     canvasExists: false,
@@ -715,6 +1003,7 @@ export function inspectMapboxMap(
     zoom: null,
     pitch: null,
     bearing: null,
+    route: NO_ROUTE,
   };
 
   if (destroyed) return empty;
@@ -744,9 +1033,27 @@ export function inspectMapboxMap(
       zoom: map.getZoom(),
       pitch: map.getPitch(),
       bearing: map.getBearing(),
+      route: {
+        sourcesPresent: ROUTE_SOURCE_IDS.every((id) => Boolean(map.getSource(id))),
+        layerCount: ROUTE_LAYER_IDS.filter((id) => Boolean(map.getLayer(id))).length,
+        primaryVertexCount: routeState?.primaryVertexCount ?? 0,
+        primaryRouteId: routeState?.primaryRouteId ?? null,
+        alternativeCount: routeState?.alternativeCount ?? 0,
+      },
     };
   } catch {
-    return empty;
+    // The map could not be read, but the handle's own route bookkeeping is
+    // still valid and is often the thing being diagnosed. Losing it here would
+    // report "no route" for a route that is set.
+    return {
+      ...empty,
+      route: {
+        ...NO_ROUTE,
+        primaryVertexCount: routeState?.primaryVertexCount ?? 0,
+        primaryRouteId: routeState?.primaryRouteId ?? null,
+        alternativeCount: routeState?.alternativeCount ?? 0,
+      },
+    };
   }
 }
 

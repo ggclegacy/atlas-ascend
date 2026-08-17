@@ -158,6 +158,27 @@ export function MapDiagnosticsOverlay({
               value={`${inspection.sourceCount ?? "—"} / ${inspection.layerCount ?? "—"}`}
               verdict={inspection.layerCount ? "ok" : "warn"}
             />
+            {/* Route rendering. Answers "is the route actually on the map"
+                without opening DevTools — a route present in application
+                state but absent from the style is exactly the class of
+                failure this project has already lost days to. */}
+            <Row
+              label="route sources"
+              value={yesNo(inspection.route.sourcesPresent).text}
+              verdict={inspection.route.sourcesPresent ? "ok" : "warn"}
+            />
+            <Row
+              label="route layers"
+              value={inspection.route.layerCount}
+              verdict={inspection.route.layerCount > 0 ? "ok" : "warn"}
+            />
+            <Row
+              label="route vertices"
+              value={inspection.route.primaryVertexCount || "—"}
+              verdict={inspection.route.primaryVertexCount > 0 ? "ok" : "warn"}
+            />
+            <Row label="primary route" value={inspection.route.primaryRouteId ?? "—"} />
+            <Row label="alternatives" value={inspection.route.alternativeCount} />
             <Row
               label="center"
               value={

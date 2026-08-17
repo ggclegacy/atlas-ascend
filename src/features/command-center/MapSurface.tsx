@@ -23,6 +23,7 @@ import {
 } from "@/map/provider";
 import type { MapConfiguration } from "@/map/types";
 import { guidanceFor } from "@/map/guidance";
+import { hydrateRoute } from "@/routing/wire";
 import {
   getLastError,
   isMapDebugRequested,
@@ -90,6 +91,31 @@ export function MapSurface({
 
   // Read after mount — `location` is unavailable during server rendering.
   useEffect(() => setDebug(isMapDebugRequested()), []);
+
+  /**
+   * Diagnostic bridge, `?atlasdebug=map` only.
+   *
+   * Publishes the live map handle and the route hydrator so the map can be
+   * driven from the console, or from an automated browser, against the real
+   * Command Center rather than a harness that only resembles it. That
+   * distinction is not theoretical here: `/debug/mapbox` mounted its map into
+   * an inline-styled container and rendered geography perfectly for days while
+   * the product showed a black rectangle, because it was never testing the
+   * same element.
+   *
+   * Gated, never present in a normal session, and read-only from the app's
+   * point of view — nothing in the product reads these.
+   */
+  useEffect(() => {
+    if (!debug || debugHandle === null) return;
+    const bridge = window as unknown as Record<string, unknown>;
+    bridge["__atlasMap"] = debugHandle;
+    bridge["__atlasHydrateRoute"] = hydrateRoute;
+    return () => {
+      delete bridge["__atlasMap"];
+      delete bridge["__atlasHydrateRoute"];
+    };
+  }, [debug, debugHandle]);
 
   // Mount once. The configuration is passed as the initial camera only —
   // subsequent camera changes go through the imperative handle, because

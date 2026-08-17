@@ -22,6 +22,7 @@ export type MapStage =
   | "constructor"
   | "style-load"
   | "map-load"
+  | "route-layers"
   | "first-render"
   | "source-error"
   | "resize"
