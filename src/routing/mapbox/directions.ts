@@ -350,11 +350,12 @@ export function mapRoute(
     id: `${providerId}:${requestedAt}:${index}`,
     distanceMeters: requireFiniteNumber(raw["distance"], "route distance"),
     durationSeconds: requireFiniteNumber(raw["duration"], "route duration"),
-    // `duration_typical` is the free-flow estimate; `duration` on the
-    // driving-traffic profile already accounts for live conditions. Reported
-    // separately so the UI can say "slower than usual" rather than conflating
-    // them into one number that silently means different things by profile.
-    durationInTrafficSeconds: optionalFiniteNumber(raw["duration_typical"]),
+    // On the driving-traffic profile `duration` already accounts for live
+    // conditions and `duration_typical` is the baseline for this time of day.
+    // Measured on a real response: duration 581.9s against duration_typical
+    // 508.6s — i.e. today is slower than usual. ETA must come from
+    // `durationSeconds`; this is only the comparison.
+    typicalDurationSeconds: optionalFiniteNumber(raw["duration_typical"]),
     polyline,
     legs,
     bounds: boundsOf(geometry),

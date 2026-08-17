@@ -34,7 +34,7 @@ function route(geometry: readonly Coordinate[], id = "r1"): AtlasRoute {
     id,
     distanceMeters: 1000,
     durationSeconds: 120,
-    durationInTrafficSeconds: null,
+    typicalDurationSeconds: null,
     geometry,
     cumulative: geometry.map((_, i) => i * 10),
     legs: [],

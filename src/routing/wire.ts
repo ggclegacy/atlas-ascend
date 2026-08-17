@@ -68,7 +68,7 @@ export interface RouteWire {
   readonly id: string;
   readonly distanceMeters: number;
   readonly durationSeconds: number;
-  readonly durationInTrafficSeconds: number | null;
+  readonly typicalDurationSeconds: number | null;
   /** Encoded polyline, precision 6. */
   readonly polyline: string;
   readonly legs: readonly RouteWireLeg[];
@@ -153,7 +153,7 @@ export function hydrateRoute(wire: RouteWire): AtlasRoute {
     id: wire.id,
     distanceMeters: wire.distanceMeters,
     durationSeconds: wire.durationSeconds,
-    durationInTrafficSeconds: wire.durationInTrafficSeconds,
+    typicalDurationSeconds: wire.typicalDurationSeconds,
     geometry,
     cumulative,
     legs,

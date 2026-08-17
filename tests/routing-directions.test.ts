@@ -91,7 +91,7 @@ describe("mapping a real route", () => {
     expect(route!.distanceMeters).toBeGreaterThan(1_000);
     expect(route!.durationSeconds).toBeGreaterThan(60);
     // driving-traffic returns a free-flow figure alongside the live one.
-    expect(route!.durationInTrafficSeconds).not.toBeNull();
+    expect(route!.typicalDurationSeconds).not.toBeNull();
   });
 
   it("produces ETA-ready arithmetic", () => {

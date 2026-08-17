@@ -150,11 +150,21 @@ export interface AtlasRoute {
   readonly distanceMeters: number;
   readonly durationSeconds: number;
   /**
-   * Duration with live traffic, when the provider supplied one. Kept separate
-   * from `durationSeconds` so the UI can tell "45 minutes" from "45 minutes,
-   * currently 58 because of traffic" instead of silently conflating them.
+   * How long this route *usually* takes at this time of day.
+   *
+   * NOT the traffic-aware figure — `durationSeconds` already is that, because
+   * Atlas requests the traffic profile. This one is the baseline to compare
+   * against, and it exists so the UI can say "slower than usual" rather than
+   * quietly presenting one number that means different things on different
+   * profiles.
+   *
+   * Named carefully after an earlier version called it
+   * `durationInTrafficSeconds`, which reads as the exact opposite of what it
+   * holds. Anything computing an ETA from *that* name would have been
+   * systematically optimistic in heavy traffic — precisely when a wrong ETA
+   * does the most damage. `null` when the provider gave no baseline.
    */
-  readonly durationInTrafficSeconds: number | null;
+  readonly typicalDurationSeconds: number | null;
   /** The full decoded line, origin first. */
   readonly geometry: readonly Coordinate[];
   /**

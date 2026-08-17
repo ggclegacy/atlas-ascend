@@ -93,6 +93,20 @@ export interface MapInspection {
   readonly route: RouteRenderState;
 }
 
+/** A geographic box. */
+export interface MapBounds {
+  readonly southwest: Coordinate;
+  readonly northeast: Coordinate;
+}
+
+/** Per-edge padding in CSS pixels. */
+export interface MapEdgePadding {
+  readonly top: number;
+  readonly right: number;
+  readonly bottom: number;
+  readonly left: number;
+}
+
 /**
  * What the map is currently drawing for the route.
  *
@@ -168,6 +182,24 @@ export interface MapHandle {
 
   /** Remove every route. Safe to call when none is drawn. */
   clearRoutes(): void;
+
+  /**
+   * Frame a geographic box into the visible part of the viewport.
+   *
+   * `padding` is in CSS pixels per edge and is deliberately asymmetric in
+   * practice — the preview sheet covers the bottom of the screen, so a route
+   * centred geometrically would sit behind its own preview. Projection is the
+   * provider's job; deciding how much room the route may have is not, and
+   * lives in `src/navigation/framing.ts`.
+   *
+   * `maxZoom` stops a short route being fitted to building level, where both
+   * markers overlap and the overview shows one intersection.
+   */
+  frameBounds(
+    bounds: MapBounds,
+    padding: MapEdgePadding,
+    options: { readonly maxZoom?: number; readonly transition: CameraTransition },
+  ): void;
   /** Recompute size after a container or viewport change. */
   resize(): void;
   /** Diagnostic snapshot. Cheap; safe to poll. */

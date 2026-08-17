@@ -7,6 +7,8 @@ import {
   type MapProvider,
   type MapProviderMaturity,
   MapUnavailableError,
+  type MapBounds,
+  type MapEdgePadding,
   type MapUnavailableReason,
   type RouteRenderState,
 } from "../provider";
@@ -708,6 +710,48 @@ export class MapboxHandle implements MapHandle {
       // reporting. `map.remove()` releases it all regardless.
     }
     this.routeLayersAttached = false;
+  }
+
+  frameBounds(
+    bounds: MapBounds,
+    padding: MapEdgePadding,
+    options: { maxZoom?: number; transition: CameraTransition },
+  ): void {
+    if (this.destroyed) return;
+
+    // A route that is a single point — or close enough that the box has no
+    // area — makes `fitBounds` resolve to maximum zoom. Handled explicitly
+    // rather than left to the vendor's edge-case behaviour.
+    const degenerate =
+      bounds.southwest.latitude === bounds.northeast.latitude &&
+      bounds.southwest.longitude === bounds.northeast.longitude;
+
+    if (degenerate) {
+      this.setCamera(
+        { center: bounds.southwest, zoom: options.maxZoom ?? 15.5, pitch: 0, bearing: 0 },
+        options.transition,
+      );
+      return;
+    }
+
+    this.map.fitBounds(
+      [
+        [bounds.southwest.longitude, bounds.southwest.latitude],
+        [bounds.northeast.longitude, bounds.northeast.latitude],
+      ],
+      {
+        padding,
+        ...(options.maxZoom !== undefined ? { maxZoom: options.maxZoom } : {}),
+        // Overview is flat and north-up. Pitch foreshortens the far half of a
+        // route and makes a north-south route read shorter than an east-west
+        // one of the same length.
+        pitch: 0,
+        bearing: 0,
+        duration: options.transition === "immediate" ? 0 : 1100,
+        // Matches --ease-atlas-cinematic: weighted, decisive, not bouncy.
+        easing: easeAtlas,
+      },
+    );
   }
 
   resize(): void {

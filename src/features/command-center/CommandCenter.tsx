@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AtlasMark } from "@/components/atlas/AtlasMark";
 import {
@@ -28,7 +28,8 @@ import {
   type LocationPermission,
   useGeolocation,
 } from "@/location/useGeolocation";
-import type { MapHandle } from "@/map/provider";
+import type { MapBounds, MapHandle } from "@/map/provider";
+import type { AtlasRoute } from "@/routing/types";
 import {
   DEFAULT_CAMERA,
   type MapConfiguration,
@@ -44,9 +45,31 @@ import {
   type Reading,
   unavailable,
 } from "@/lib/provenance";
+import { isMapDebugRequested } from "@/map/mapbox/diagnostics";
 import { LocalVehicleStore } from "@/vehicles/store";
 import type { Vehicle } from "@/vehicles/types";
 import { describeVehicle, formatOdometer } from "@/vehicles/types";
+import {
+  INITIAL_NAVIGATION_STATE,
+  type NavigationFailure,
+  destinationOf,
+  type NavigationState,
+  navigationReducer,
+  routesOf,
+  selectedRouteOf,
+} from "@/navigation/machine";
+import {
+  ROUTE_OVERVIEW_MAX_ZOOM,
+  routePreviewPadding,
+} from "@/navigation/framing";
+import { AtlasRouting } from "@/routing/AtlasRouting";
+import { NavigationDiagnostics } from "@/features/navigation/NavigationDiagnostics";
+import {
+  NavigationStarting,
+  RouteFailure,
+  RouteLoading,
+  RoutePreview,
+} from "@/features/navigation/RoutePreview";
 import { AtlasCommandSheet } from "./AtlasCommandSheet";
 import { MapErrorBoundary } from "./MapErrorBoundary";
 import { MapSurface } from "./MapSurface";
@@ -75,7 +98,7 @@ export function CommandCenter() {
 
   const [perspective, setPerspective] = useState<MapPerspective>("driving");
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [destination, setDestination] = useState<Destination | null>(null);
+  const [nav, dispatch] = useReducer(navigationReducer, INITIAL_NAVIGATION_STATE);
   const [following, setFollowing] = useState(true);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [saved, setSaved] = useState<Destination[]>([]);
@@ -83,6 +106,39 @@ export function CommandCenter() {
 
   const mapRef = useRef<MapHandle | null>(null);
   const hasCenteredRef = useRef(false);
+  const routing = useMemo(() => new AtlasRouting(), []);
+  /**
+   * Monotonic id for route requests, and the abort handle for the one in
+   * flight. Changing destination mid-request is ordinary use; without both of
+   * these a slow route to the previous destination lands after a fast route to
+   * the current one and silently wins.
+   */
+  const requestSeq = useRef(0);
+  const inFlight = useRef<AbortController | null>(null);
+  /** Frozen at preview time so the arrival clock does not tick while reading. */
+  const [previewNow, setPreviewNow] = useState(() => Date.now());
+  const [debug, setDebug] = useState(false);
+  const [drawn, setDrawn] = useState<{ id: string | null; layers: number }>({
+    id: null,
+    layers: 0,
+  });
+
+  useEffect(() => setDebug(isMapDebugRequested()), []);
+
+  // Poll what the map is actually drawing. Comparing it against what the state
+  // machine believes is the whole point — they should never disagree, and when
+  // they do that is the bug.
+  useEffect(() => {
+    if (!debug) return;
+    const timer = setInterval(() => {
+      const route = mapRef.current?.inspect().route;
+      setDrawn({
+        id: route?.primaryRouteId ?? null,
+        layers: route?.layerCount ?? 0,
+      });
+    }, 600);
+    return () => clearInterval(timer);
+  }, [debug]);
 
   const destinationStore = useMemo(() => new LocalDestinationStore(), []);
   const vehicleStore = useMemo(() => new LocalVehicleStore(), []);
@@ -158,25 +214,157 @@ export function CommandCenter() {
     );
   }, [location]);
 
-  const selectDestination = useCallback(
-    (next: Destination) => {
-      setDestination(next);
-      destinationStore.recordUse(next);
-      setRecents(destinationStore.recents());
-      setFollowing(false);
-      mapRef.current?.setDestination(next.coordinate);
-      mapRef.current?.setCamera(
-        { center: next.coordinate, zoom: 15.5 },
-        "cinematic",
-      );
+  /**
+   * Requests a route and drives the machine through it.
+   *
+   * The `requestId` is what makes a superseded response harmless: the reducer
+   * discards any result it is no longer waiting for, and the abort stops the
+   * request being billed and parsed at all.
+   */
+  const requestRoute = useCallback(
+    async (destination: Destination) => {
+      const origin = isAvailable(location.fix)
+        ? location.fix.value.coordinate
+        : null;
+
+      const requestId = ++requestSeq.current;
+
+      // No origin means no route. Said plainly, with the action that fixes it,
+      // rather than a spinner that never resolves.
+      if (origin === null) {
+        dispatch({ type: "ROUTE_REQUESTED", requestId });
+        dispatch({ type: "ROUTE_FAILED", requestId, failure: "no-location" });
+        return;
+      }
+
+      inFlight.current?.abort();
+      const controller = new AbortController();
+      inFlight.current = controller;
+
+      dispatch({ type: "ROUTE_REQUESTED", requestId });
+
+      const outcome = await routing.route({
+        origin,
+        destination,
+        alternatives: true,
+        headingDegrees: isAvailable(location.heading)
+          ? location.heading.value
+          : null,
+        signal: controller.signal,
+      });
+
+      if (inFlight.current === controller) inFlight.current = null;
+
+      if (outcome.ok) {
+        setPreviewNow(Date.now());
+        dispatch({ type: "ROUTE_SUCCEEDED", requestId, routes: outcome.routes });
+      } else {
+        dispatch({ type: "ROUTE_FAILED", requestId, failure: outcome.failure });
+      }
     },
-    [destinationStore],
+    [location.fix, location.heading, routing],
   );
 
-  const clearDestination = useCallback(() => {
-    setDestination(null);
-    mapRef.current?.setDestination(null);
-  }, []);
+  const selectDestination = useCallback(
+    (next: Destination) => {
+      dispatch({ type: "DESTINATION_SELECTED", destination: next });
+      destinationStore.recordUse(next);
+      setRecents(destinationStore.recents());
+      // A route overview owns the camera; follow-mode would fight it.
+      setFollowing(false);
+      setSheetOpen(false);
+      void requestRoute(next);
+    },
+    [destinationStore, requestRoute],
+  );
+
+  /**
+   * Cancel — the full teardown.
+   *
+   * Everything the preview created has to go, or the next session inherits a
+   * gold route to nowhere and a stale ETA. The order matters only in that the
+   * request is aborted first, so its response cannot arrive mid-cleanup.
+   */
+  const cancelNavigation = useCallback(() => {
+    inFlight.current?.abort();
+    inFlight.current = null;
+    // Invalidates any response still in flight, belt and braces.
+    requestSeq.current++;
+    dispatch({ type: "CANCEL" });
+
+    const map = mapRef.current;
+    map?.clearRoutes();
+    map?.setDestination(null);
+    setFollowing(true);
+    if (isAvailable(location.fix)) {
+      map?.setCamera(
+        { center: location.fix.value.coordinate, zoom: 16.4, pitch: pitchFor(perspective) },
+        "cinematic",
+      );
+    }
+  }, [location.fix, perspective]);
+
+  const retryRoute = useCallback(() => {
+    const destination = destinationOf(nav);
+    if (destination !== null) void requestRoute(destination);
+  }, [nav, requestRoute]);
+
+  const startDrive = useCallback(() => {
+    const origin = isAvailable(location.fix)
+      ? location.fix.value.coordinate
+      : null;
+    // The session records where the drive actually began. Without an origin
+    // there is no session worth creating, and there is no route either.
+    if (origin === null) return;
+    dispatch({ type: "START_DRIVE", at: Date.now(), origin });
+  }, [location.fix]);
+
+  /**
+   * The single point where navigation state reaches the map.
+   *
+   * Split by dependency on purpose. This effect runs when the *set* of routes
+   * changes — a new request, or a teardown — and does the expensive work.
+   * Selecting an alternate is handled separately below, because promoting a
+   * route the map already holds must not rebuild layers or refit the camera.
+   */
+  const routes = routesOf(nav);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (routes.length === 0) {
+      map.clearRoutes();
+      return;
+    }
+
+    map.setRoutes(routes, routes[0]?.id ?? null);
+
+    // Frame into the space the sheet does not occupy. Centring the route
+    // geometrically would put half of it behind its own preview.
+    const bounds = unionBounds(routes);
+    const padding = routePreviewPadding(
+      { width: window.innerWidth, height: window.innerHeight },
+      PREVIEW_SHEET_HEIGHT,
+      readSafeAreaInsets(),
+    );
+    map.frameBounds(bounds, padding, {
+      maxZoom: ROUTE_OVERVIEW_MAX_ZOOM,
+      transition: "cinematic",
+    });
+  }, [routes]);
+
+  /**
+   * Alternate selection — a restyle, never a rebuild.
+   *
+   * `selectRoute` swaps which geometry is drawn as primary using data the map
+   * already holds. No request, no re-decode, no camera move: the driver is
+   * comparing two options and the map jumping each time would make that
+   * comparison harder, not easier.
+   */
+  const selectedRouteId = selectedRouteOf(nav)?.id ?? null;
+  useEffect(() => {
+    if (selectedRouteId !== null) mapRef.current?.selectRoute(selectedRouteId);
+  }, [selectedRouteId]);
 
   const atlasContext: AtlasContext = useMemo(
     () => ({
@@ -201,9 +389,11 @@ export function CommandCenter() {
   const simulationNotes = useMemo(() => {
     const notes: string[] = [];
     if (vehicles.length > 0) notes.push("Vehicles stored on this device only");
-    if (destination !== null) notes.push("Routing not implemented");
+    if (nav.phase === "navigationStarting") {
+      notes.push("Turn-by-turn guidance not implemented");
+    }
     return notes;
-  }, [vehicles.length, destination]);
+  }, [vehicles.length, nav.phase]);
 
   const perspectiveIcon =
     perspective === "driving" ? (
@@ -302,12 +492,25 @@ export function CommandCenter() {
             />
           </div>
 
-          {destination && (
-            <DestinationBanner
-              destination={destination}
-              onClear={clearDestination}
+          {debug && (
+            <NavigationDiagnostics
+              state={nav}
+              now={previewNow}
+              drawnRouteId={drawn.id}
+              drawnLayerCount={drawn.layers}
             />
           )}
+
+          <NavigationSurface
+            state={nav}
+            now={previewNow}
+            onSelectRoute={(routeId) =>
+              dispatch({ type: "ALTERNATE_SELECTED", routeId })
+            }
+            onStartDrive={startDrive}
+            onCancel={cancelNavigation}
+            onRetry={retryRoute}
+          />
 
           <DestinationRail
             saved={saved}
@@ -335,6 +538,144 @@ export function CommandCenter() {
 }
 
 // ---------------------------------------------------------------------------
+
+/**
+ * Height reserved for the preview sheet when framing the route.
+ *
+ * A measured value would be more precise, but measuring requires the sheet to
+ * exist, and the camera has to be framed as the route arrives — before it
+ * does. A constant that matches the sheet's minimum keeps the two in step; the
+ * padding logic scales it down on small viewports anyway.
+ */
+const PREVIEW_SHEET_HEIGHT = 236;
+
+/** The smallest box containing every route on offer. */
+function unionBounds(routes: readonly AtlasRoute[]): MapBounds {
+  let south = 90;
+  let west = 180;
+  let north = -90;
+  let east = -180;
+
+  for (const route of routes) {
+    south = Math.min(south, route.bounds.southwest.latitude);
+    west = Math.min(west, route.bounds.southwest.longitude);
+    north = Math.max(north, route.bounds.northeast.latitude);
+    east = Math.max(east, route.bounds.northeast.longitude);
+  }
+
+  return {
+    southwest: { latitude: south, longitude: west },
+    northeast: { latitude: north, longitude: east },
+  };
+}
+
+/**
+ * The device's safe-area insets, in CSS pixels.
+ *
+ * Read from the computed style rather than assumed, because they are zero on
+ * desktop, substantial on a notched phone, and change on rotation. Framing a
+ * route without them puts the destination marker under the home indicator.
+ */
+function readSafeAreaInsets(): {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+} {
+  if (typeof window === "undefined") {
+    return { top: 0, bottom: 0, left: 0, right: 0 };
+  }
+  const style = getComputedStyle(document.documentElement);
+  const read = (name: string) => {
+    const value = Number.parseFloat(style.getPropertyValue(name));
+    return Number.isFinite(value) ? value : 0;
+  };
+  return {
+    top: read("--atlas-safe-top"),
+    bottom: read("--atlas-safe-bottom"),
+    left: read("--atlas-safe-left"),
+    right: read("--atlas-safe-right"),
+  };
+}
+
+/**
+ * Renders whichever navigation surface the current phase calls for.
+ *
+ * A single switch over the state union rather than a stack of conditional
+ * renders, so exactly one surface can ever be on screen — the property the
+ * state machine exists to guarantee, expressed where it is visible.
+ */
+function NavigationSurface({
+  state,
+  now,
+  onSelectRoute,
+  onStartDrive,
+  onCancel,
+  onRetry,
+}: {
+  state: NavigationState;
+  now: number;
+  onSelectRoute: (routeId: string) => void;
+  onStartDrive: () => void;
+  onCancel: () => void;
+  onRetry: () => void;
+}) {
+  switch (state.phase) {
+    case "destinationSelected":
+    case "routing":
+      return (
+        <RouteLoading destination={state.destination} onCancel={onCancel} />
+      );
+
+    case "routePreview":
+      return (
+        <RoutePreview
+          destination={state.destination}
+          routes={state.routes}
+          selectedId={state.selectedId}
+          now={now}
+          onSelectRoute={onSelectRoute}
+          onStartDrive={onStartDrive}
+          onCancel={onCancel}
+        />
+      );
+
+    case "routeFailed":
+      return (
+        <RouteFailure
+          destination={state.destination}
+          failure={state.failure}
+          // Retrying a destination that was never routable, or a request the
+          // app itself abandoned, would just fail again the same way.
+          onRetry={retryableFailures.has(state.failure) ? onRetry : null}
+          onDismiss={onCancel}
+        />
+      );
+
+    case "navigationStarting":
+      return (
+        <NavigationStarting
+          destination={state.session.destination}
+          route={state.session.route}
+          now={now}
+          onExit={onCancel}
+        />
+      );
+
+    default:
+      return null;
+  }
+}
+
+/** Failures where trying the same request again could plausibly succeed. */
+const retryableFailures: ReadonlySet<NavigationFailure> = new Set<NavigationFailure>([
+  "network",
+  "timeout",
+  "rate-limited",
+  "error",
+  "malformed-response",
+  "no-location",
+]);
 
 function VehicleChip({
   vehicle,
@@ -423,42 +764,6 @@ function TelemetryBlock({
       unit="mph"
       size="large"
     />
-  );
-}
-
-function DestinationBanner({
-  destination,
-  onClear,
-}: {
-  destination: Destination;
-  onClear: () => void;
-}) {
-  return (
-    <div className="atlas-edge-gold flex items-center gap-3 rounded-2xl px-4 py-3">
-      <span className="text-gold">
-        <NavigationIcon size={15} />
-      </span>
-      <span className="flex min-w-0 flex-1 flex-col">
-        <Eyebrow tick={false} tone="gold">
-          Destination set
-        </Eyebrow>
-        <span className="atlas-subheading truncate text-ink">
-          {destination.name}
-        </span>
-        {/* Honest: a destination is marked, but no route has been computed.
-            Claiming an ETA here would be inventing one. */}
-        <span className="atlas-label text-ink-3">
-          Routing and ETA not available yet
-        </span>
-      </span>
-      <button
-        type="button"
-        onClick={onClear}
-        className="atlas-label shrink-0 text-ink-2"
-      >
-        Clear
-      </button>
-    </div>
   );
 }
 
