@@ -33,6 +33,34 @@ import { Eyebrow } from "@/components/atlas/primitives";
 import { MapDiagnosticsOverlay } from "./MapDiagnosticsOverlay";
 
 /**
+ * Geometry for the element Mapbox mounts into — declared inline, deliberately.
+ *
+ * THIS MUST NOT BECOME A CLASS. Mapbox GL adds `.mapboxgl-map` to whatever
+ * element it is given, and `mapbox-gl.css` declares
+ * `.mapboxgl-map { position: relative }`. That is the same specificity as
+ * Tailwind's `.absolute`, and the vendor stylesheet loads after ours — so the
+ * class form loses the cascade, the container silently stops being absolutely
+ * positioned, `top:0/bottom:0` decay into inert offsets, and its height
+ * resolves to `auto` = **0**. Mapbox then computes a zero-area viewport,
+ * requests no tiles at all, and paints nothing. The application renders a
+ * perfect black rectangle with no error, no failed request, and a token that
+ * is entirely fine.
+ *
+ * An inline style cannot be overridden by any stylesheet, which makes the
+ * geometry independent of bundler CSS ordering — the one thing here that is
+ * not a documented contract. `/debug/mapbox` has always done exactly this, and
+ * that is the sole reason the harness rendered geography while the product did
+ * not: it was never testing the same container.
+ */
+export const MAP_CONTAINER_STYLE = {
+  position: "absolute",
+  top: 0,
+  right: 0,
+  bottom: 0,
+  left: 0,
+} as const;
+
+/**
  * The map surface — the environmental canvas the whole product sits on.
  *
  * Owns the provider lifecycle and, critically, the honest failure states. A
@@ -153,7 +181,7 @@ export function MapSurface({
     <div className="absolute inset-0">
       <div
         ref={containerRef}
-        className="absolute inset-0"
+        style={MAP_CONTAINER_STYLE}
         // The map is decorative to a screen reader; all meaningful state is
         // exposed through the chrome above it.
         aria-hidden="true"

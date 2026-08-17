@@ -10,6 +10,7 @@ import { guidanceFor } from "@/map/guidance";
 import { classifyError } from "@/map/mapbox/MapboxMapProvider";
 import type { MapUnavailableReason } from "@/map/provider";
 import { summarizeProbes, type ProbeResult } from "@/features/debug/endpointProbe";
+import { MAP_CONTAINER_STYLE } from "@/features/command-center/MapSurface";
 
 /**
  * Regression tests for the 2026-08-17 misdiagnosis.
@@ -89,6 +90,29 @@ describe("failure guidance never asserts an unproven account setting", () => {
           `${status} on ${resource}`,
         ).not.toMatch(/styles:tiles|styles:read/i);
       }
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Map container geometry — the black-rectangle defect
+// ---------------------------------------------------------------------------
+
+describe("the Mapbox container's geometry is stylesheet-proof", () => {
+  it("declares position and all four insets inline", () => {
+    // THE BLACK-MAP DEFECT. The container carried Tailwind's `absolute
+    // inset-0`. Mapbox GL adds `.mapboxgl-map` to that same element, and
+    // `mapbox-gl.css` declares `.mapboxgl-map { position: relative }` — equal
+    // specificity, loaded later, so it won. The container stopped being
+    // absolutely positioned, `top:0/bottom:0` became inert, height resolved to
+    // `auto` = 0, and Mapbox requested ZERO tiles for a zero-area viewport.
+    // The app rendered a black rectangle with no error and a healthy token.
+    //
+    // Inline styles cannot be overridden by any stylesheet. If someone moves
+    // this back to a class to tidy it up, this test fails.
+    expect(MAP_CONTAINER_STYLE.position).toBe("absolute");
+    for (const edge of ["top", "right", "bottom", "left"] as const) {
+      expect(MAP_CONTAINER_STYLE[edge], `${edge} must be pinned inline`).toBe(0);
     }
   });
 });

@@ -67,9 +67,36 @@ correct on whatever domain it lands on.
 
 ## Map incidents — resolved
 
-Four defects, each of which produced a dark rectangle or a confidently wrong
+Five defects, each of which produced a dark rectangle or a confidently wrong
 explanation for one. Recorded because the guards that now prevent them only
 make sense alongside what they are guarding against.
+
+**0 · The map container was collapsed to zero height by the vendor stylesheet.**
+This was the actual black rectangle, and it outlived every other fix. The
+element Mapbox mounts into carried Tailwind's `absolute inset-0`. Mapbox GL
+adds `.mapboxgl-map` to that same element and `mapbox-gl.css` declares
+`.mapboxgl-map { position: relative }` — identical specificity, loaded later,
+so it won the cascade. The container stopped being absolutely positioned,
+`top:0/bottom:0` decayed into inert offsets, height resolved to `auto` = **0**,
+and Mapbox computed a zero-area viewport and requested **zero tiles**. Measured
+on the real DOM chain: `main` 390×844 → wrapper 390×844 → `.mapboxgl-map`
+**390×0**.
+
+Everything else reported success — token valid, style applied, 23 layers, no
+failed request, `load` fired — which is why this survived so many passes with
+no error to follow.
+
+`/debug/mapbox` could never reproduce it: the harness sets
+`position:absolute;inset:0` as an **inline** style, which no stylesheet can
+override. The harness was never testing the same container as the product. That
+single difference is why "all levels render" and "the app is black" were both
+true for days.
+
+Fixed by pinning the container's geometry inline (`MAP_CONTAINER_STYLE`), which
+is immune to bundler CSS ordering — the one thing in this chain that is not a
+documented contract. A map that reaches `load` with a zero-area container is now
+also reported as an explicit failure rather than succeeding silently, and
+`tests/map-diagnostics.test.ts` fails if the geometry moves back to a class.
 
 **1 · The surface hid a working map.** The loading veil was opaque with no
 timeout, and `ready`/`error` emitted before the consumer subscribed were

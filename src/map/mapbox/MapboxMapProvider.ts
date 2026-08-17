@@ -250,7 +250,23 @@ export class MapboxHandle implements MapHandle {
         this.fatalError = null;
       }
 
-      stage("map-load", `canvas ${describeContainer(container)}`);
+      // A map that reaches `load` with a zero-area container has succeeded at
+      // everything except being visible: the style applied, the token worked,
+      // no request failed — and Mapbox requested no tiles, because there is no
+      // area to cover. That is indistinguishable from a broken map on screen
+      // and reports as success everywhere else, so it is called out loudly
+      // here. It is the signature of the container's geometry being overridden
+      // by a stylesheet; see MAP_CONTAINER_STYLE in MapSurface.
+      if (!hasNonZeroSize(container)) {
+        stageFailed(
+          "map-load",
+          `map loaded into a ZERO-AREA container (${describeContainer(container)}) — ` +
+            "no tiles will be requested and nothing will be visible",
+        );
+      } else {
+        stage("map-load", `canvas ${describeContainer(container)}`);
+      }
+
       this.emit("ready");
     });
 
