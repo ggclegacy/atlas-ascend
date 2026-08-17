@@ -83,6 +83,40 @@ shipped classifier.
 belongs to another account. Resource names are now exported from
 `atlas-night.ts` so the probe cannot drift from what the style requests.
 
+**Follow-up (2026-08-17): the underlying production failure is a stale
+build-time token in ONE Vercel project.** Deployment
+`atlas-ascend-9qu1bq8i6-…` (project `atlas-ascend`, commit `d2d6a35`, built
+2026-08-16T23:29:32Z) returns 401 on `styles/v1/mapbox/dark-v11` *and* on
+tiles. Its sibling `atlas-ascend-y39u` was built from the **same commit 21
+seconds earlier** and returns 200 on all seven endpoints — same code, same
+minute, so the only variable is the build-time env var.
+
+Mapbox's answer to every way a public token can be wrong was measured
+directly, and all of them are indistinguishable:
+
+| Token presented | `/styles/v1/mapbox/dark-v11` | TileJSON |
+|---|---|---|
+| valid (`a38aca79dac0`) | 200 | 200 |
+| truncated by one char | 401 `Not Authorized - Invalid Token` | 401 |
+| signature replaced, same account | 401 `Not Authorized - Invalid Token` | 401 |
+| unknown account | 401 `Not Authorized - Invalid Token` | 401 |
+| wrapped in quotes | 401 | 401 `Not Authorized … Direct access not allowed` |
+| trailing newline | 401 | 401 |
+| empty | 401 | 401 |
+
+No 403 is reachable this way — 403 is what a *valid* token that is restricted
+or under-scoped returns. **401 on the public `dark-v11` style is proof the
+credential itself is unknown to Mapbox**, and no scope can produce it: a token
+missing `styles:tiles` would still read the style, and one missing
+`styles:read` would still read tiles. Length and prefix cannot distinguish two
+tokens from one account — every default public token for the same account is
+93 chars and starts `pk.eyJ` — which is why the fingerprint exists.
+
+The harness now reports this correctly end to end; driven under a forced 401 it
+prints `invalid-token` with Mapbox's verbatim body on every failing level,
+where it previously printed `style-access-denied` / `tile-access-denied` with
+no body at all.
+
 ---
 
 ## Invisible-map root cause (2026-08-16) — FIXED

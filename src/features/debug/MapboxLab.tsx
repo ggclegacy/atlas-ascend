@@ -6,6 +6,7 @@ import { atlasNightStyle } from "@/map/mapbox/atlas-night";
 import {
   describeToken,
   detectWebGL,
+  readMapboxErrorBody,
   safeResource,
   tokenAccount,
   tokenFingerprint,
@@ -80,6 +81,15 @@ interface LevelResult {
   readonly errorCategory: string | null;
   readonly errorResource: string | null;
   readonly errorMessage: string | null;
+  /**
+   * What Mapbox itself said about the refusal.
+   *
+   * The SDK never surfaces this — its `AJAXError` discards the response body —
+   * so a level that fails 401 otherwise reports a bare number, which is the
+   * exact poverty of evidence that let a wrong cause be inferred. Fetched
+   * explicitly for auth failures.
+   */
+  readonly errorBody: string | null;
   readonly ms: number;
 }
 
@@ -140,6 +150,7 @@ export function MapboxLab() {
           errorCategory: "missing-token",
           errorResource: null,
           errorMessage: "NEXT_PUBLIC_MAPBOX_TOKEN is not present in this build",
+          errorBody: null,
           ms: 0,
         },
       ]);
@@ -166,6 +177,7 @@ export function MapboxLab() {
       let lastCategory: string | null = null;
       let lastResource: string | null = null;
       let lastMessage: string | null = null;
+      let lastAuthUrl: string | null = null;
       let teardown: (() => void) | null = null;
       let mapForPixels: import("mapbox-gl").Map | null = null;
       let handle: MapHandle | null = null;
@@ -176,6 +188,10 @@ export function MapboxLab() {
         lastMessage = raw?.message ?? "unknown";
         lastResource = safeResource(raw?.url);
         lastCategory = classifyError(status, lastMessage, lastResource);
+        // Kept raw only to re-request it below; never rendered or logged.
+        if ((status === 401 || status === 403) && typeof raw?.url === "string") {
+          lastAuthUrl = raw.url;
+        }
       };
 
       try {
@@ -274,6 +290,9 @@ export function MapboxLab() {
             ? "rendered"
             : "flat";
 
+        // A 401/403 is only a number until Mapbox is asked to explain it.
+        const errorBody = lastAuthUrl ? await readMapboxErrorBody(lastAuthUrl) : null;
+
         setResults((prior) => [
           ...prior,
           {
@@ -285,10 +304,13 @@ export function MapboxLab() {
             errorCategory: lastCategory,
             errorResource: lastResource,
             errorMessage: lastMessage,
+            errorBody,
             ms: Date.now() - started,
           },
         ]);
       } catch (error) {
+        const errorBody = lastAuthUrl ? await readMapboxErrorBody(lastAuthUrl) : null;
+
         setResults((prior) => [
           ...prior,
           {
@@ -301,6 +323,7 @@ export function MapboxLab() {
             errorResource: lastResource,
             errorMessage:
               lastMessage ?? (error instanceof Error ? error.message : String(error)),
+            errorBody,
             ms: Date.now() - started,
           },
         ]);
@@ -504,7 +527,7 @@ export function MapboxLab() {
           <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 10.5, minWidth: 560 }}>
             <thead>
               <tr style={{ color: "#6B6874", textAlign: "left" }}>
-                {["#", "level", "rendered", "canvas", "GL", "style", "map", "layers", "src", "HTTP", "error"].map(
+                {["#", "level", "rendered", "canvas", "GL", "style", "map", "layers", "src", "HTTP", "error", "Mapbox said"].map(
                   (h) => (
                     <th key={h} style={{ padding: "4px 6px", borderBottom: "1px solid rgba(255,255,255,0.14)" }}>
                       {h}
@@ -516,7 +539,7 @@ export function MapboxLab() {
             <tbody>
               {results.length === 0 ? (
                 <tr>
-                  <td colSpan={11} style={{ padding: 10, color: "#6B6874" }}>
+                  <td colSpan={12} style={{ padding: 10, color: "#6B6874" }}>
                     Press “Run all 6 levels”.
                   </td>
                 </tr>
@@ -546,6 +569,12 @@ export function MapboxLab() {
                       </td>
                       <td style={{ padding: "4px 6px", color: r.errorCategory ? "#FF6B6B" : "#6B6874" }}>
                         {r.errorCategory ?? "—"}
+                      </td>
+                      {/* Mapbox's own words. The category to its left is an
+                          inference; this column is the evidence for it, and
+                          the two must always be readable side by side. */}
+                      <td style={{ padding: "4px 6px", color: r.errorBody ? "#FF6B6B" : "#6B6874" }}>
+                        {r.errorBody ?? (r.errorStatus ? "no body" : "—")}
                       </td>
                     </tr>
                   );
