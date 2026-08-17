@@ -64,6 +64,15 @@ src/
     provider.ts           The map vendor boundary
     mapbox/               The ONLY place mapbox-gl may be imported
       atlas-night.ts      The Atlas map style, authored in-repo
+  routing/
+    types.ts              Vendor-neutral route model
+    mapbox/               The ONLY place Directions JSON may be read
+  navigation/             The driving brain — pure, no React, no Mapbox
+    engine.ts             GPS fixes -> position on the route
+    reroute.ts            Whether a departure is worth a new route
+    useRerouting.ts       ...and the request, abort and timeout it costs
+    thresholds.ts         Every number either of them branches on
+    simulator.ts          GPS traces, so a wrong turn is testable
   atlas/                  Intelligence + speech boundaries
   destinations/           One destination model, search, storage
   vehicles/               Schema + persistence
@@ -114,6 +123,33 @@ enforced structurally rather than by discipline:
   and lists what Atlas can actually do.
 - **No dead controls.** Every control acts, enters an explicit state, or visibly
   reports why it is unavailable.
+
+---
+
+## How rerouting decides
+
+Leaving the route is a measurement; deciding to act on it is a judgement. Atlas
+keeps them apart.
+
+The **engine** answers the measurement question — is this position off the line?
+Its corridor scales with the accuracy the device reports, so 40 m of deviation
+on a 5 m fix is real and the same 40 m on a 45 m fix is noise. Fixes taken while
+stopped, or while the signal is poor, cannot accumulate evidence at all.
+
+The **reroute machine** answers the judgement question — has that held long
+enough to be worth a request and a new set of instructions? It adds a distance
+floor, a second confirmation window, and a minimum number of fixes. A departure
+that is unambiguous (well outside the corridor, or heading somewhere the route
+does not go) confirms faster than one that is not. A car on a frontage road and
+a car making a wrong turn look identical without map matching, so Atlas does not
+guess between them — the ambiguous case simply takes longer.
+
+Everything after that is lifetime management: one request at a time, aborted on
+timeout, discarded if the driver rejoins, and refused outright if it outlived
+its destination. A failed reroute never ends navigation.
+
+Every threshold lives in `src/navigation/thresholds.ts` with its reasoning, and
+all of them are provisional until validated on a real drive.
 
 ---
 

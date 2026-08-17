@@ -3,6 +3,7 @@
 import type { AtlasRoute } from "@/routing/types";
 import type { NavigationProgress } from "@/navigation/engine";
 import type { NavigationCameraMode } from "@/navigation/camera";
+import { type RerouteState, describeReroute } from "@/navigation/reroute";
 import { presentFollowing, presentManeuver } from "@/navigation/maneuver";
 import { formatArrivalClock, formatDuration, formatRouteDistance } from "@/navigation/eta";
 import { ManeuverIcon } from "@/components/atlas/ManeuverIcon";
@@ -34,6 +35,7 @@ export function NavigationHud({
   progress,
   camera,
   degraded,
+  reroute,
   onRecenter,
   onOverview,
   onEnd,
@@ -43,6 +45,8 @@ export function NavigationHud({
   camera: NavigationCameraMode;
   /** GPS is stale or lost. Shown calmly; guidance is not torn down. */
   degraded: boolean;
+  /** Rerouting status, or `null` when there is nothing to say. */
+  reroute?: RerouteState;
   onRecenter: () => void;
   onOverview: () => void;
   onEnd: () => void;
@@ -60,6 +64,10 @@ export function NavigationHud({
 
   const maneuver = presentManeuver(step, next, progress.distanceToManeuverMeters);
   const following = presentFollowing(after, maneuver.primary);
+  // `null` for suspected and settling — deliberately. A driver learns nothing
+  // from "we are thinking about it", and a status that appears at every wide
+  // junction teaches them to ignore the one that matters.
+  const rerouteNotice = reroute ? describeReroute(reroute) : null;
 
   return (
     <>
@@ -111,9 +119,33 @@ export function NavigationHud({
           )}
         </section>
 
-        {/* Calm, never alarming. GPS coming and going is normal; the guidance
-            behind it is still the last thing Atlas actually knew. */}
-        {degraded && (
+        {/* Rerouting. One line, in the maneuver card's own column, because the
+            driver's question is "does the instruction above still apply" and
+            the answer belongs next to the instruction.
+
+            It takes the degraded banner's slot rather than stacking above it:
+            two status lines competing under a maneuver is two things to read,
+            and a driver who has just left the route has less attention to
+            spend, not more. Rerouting wins the slot because it is the reason
+            the guidance is about to change. */}
+        {rerouteNotice !== null ? (
+          <div className="atlas-glass-panel mt-2 flex items-center gap-2.5 rounded-2xl px-4 py-2.5">
+            <LiveDot
+              tone={rerouteNotice.tone === "working" ? "violet" : "caution"}
+              live={rerouteNotice.tone === "working"}
+            />
+            <span
+              className={`atlas-label ${
+                rerouteNotice.tone === "working" ? "text-ink-2" : "text-caution"
+              }`}
+            >
+              {rerouteNotice.text}
+            </span>
+          </div>
+        ) : (
+          /* Calm, never alarming. GPS coming and going is normal; the guidance
+             behind it is still the last thing Atlas actually knew. */
+          degraded && (
           <div className="atlas-glass-panel mt-2 flex items-center gap-2.5 rounded-2xl px-4 py-2.5">
             <LiveDot tone="caution" live={false} />
             <span className="atlas-label text-caution">
@@ -121,7 +153,8 @@ export function NavigationHud({
                 ? "GPS signal lost — holding last known position"
                 : "GPS signal limited"}
             </span>
-          </div>
+            </div>
+          )
         )}
       </div>
 

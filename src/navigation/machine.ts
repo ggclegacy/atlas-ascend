@@ -128,6 +128,24 @@ export type NavigationEvent =
   | { readonly type: "RECENTER_SETTLED" }
   | { readonly type: "SHOW_OVERVIEW" }
   | { readonly type: "NAVIGATION_FAILED"; readonly failure: NavigationFailure }
+  /**
+   * A replacement route has arrived and been accepted.
+   *
+   * The *only* navigation event rerouting emits. Everything before it —
+   * suspicion, confirmation, the request, retries — lives in the reroute state
+   * machine, deliberately outside this union: those are continuous signals
+   * arriving at ~1Hz, and folding them in would make every GPS fix a phase
+   * transition, which is exactly the thing route progress is kept out for.
+   *
+   * `destinationId` is the trip guard. A response that outlived its
+   * destination must never redirect a drive to somewhere the driver already
+   * left behind.
+   */
+  | {
+      readonly type: "REROUTE_ADOPTED";
+      readonly destinationId: string;
+      readonly routes: readonly AtlasRoute[];
+    }
   | { readonly type: "CANCEL" };
 
 export const INITIAL_NAVIGATION_STATE: NavigationState = { phase: "idle" };
@@ -259,6 +277,35 @@ export function navigationReducer(
         session: state.session,
         failure: event.failure,
       };
+
+    case "REROUTE_ADOPTED": {
+      // Only a live drive can be rerouted. A response landing after the driver
+      // ended navigation, or while the preview is still on screen, is stale by
+      // definition.
+      if (state.phase !== "navigating") return state;
+      // Destination intent is preserved absolutely. If these disagree, the
+      // response belongs to a trip that no longer exists.
+      if (state.session.destination.id !== event.destinationId) return state;
+
+      const primary = event.routes[0];
+      if (primary === undefined) return state;
+
+      // Atomic: the route, the alternates the map draws, and the identity every
+      // consumer keys off all change in one transition. Replacing the geometry
+      // while leaving the session pointing at the old route is precisely the
+      // "stale navigation state behind a new polyline" failure.
+      //
+      // `destination`, `origin` and `startedAt` are carried through untouched:
+      // the trip is the same trip, and the drive did not restart.
+      return {
+        ...state,
+        session: {
+          ...state.session,
+          route: primary,
+          offered: event.routes,
+        },
+      };
+    }
 
     case "CANCEL":
       return { phase: "idle" };

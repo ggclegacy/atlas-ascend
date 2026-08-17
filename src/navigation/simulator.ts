@@ -5,8 +5,16 @@ import {
   type StepBoundary,
   advance,
   initialState,
+  routeSteps,
   stepBoundaries,
 } from "./engine";
+import {
+  DEFAULT_REROUTE_CONFIG,
+  FOLLOWING,
+  type RerouteConfig,
+  type RerouteState,
+  rerouteReducer,
+} from "./reroute";
 import type { NavigationSample } from "./sample";
 
 /**
@@ -298,6 +306,114 @@ export function parallelRoadTrace(
   });
 }
 
+/**
+ * Drives to a real turn in the route and continues straight through it.
+ *
+ * The commonest way anyone leaves a route, and materially different from
+ * `wrongTurnTrace`: the driver does not turn *away*, they simply fail to turn.
+ * The separation from the route therefore grows from zero at the junction,
+ * which is precisely the geometry a distance threshold is slowest to catch.
+ *
+ * The turn is found in the route's own maneuvers rather than assumed at a
+ * distance, so this stays a missed turn on any fixture.
+ */
+export function missedTurnTrace(
+  route: AtlasRoute,
+  options: TraceOptions & { turnIndex?: number; continueMeters?: number } = {},
+): NavigationSample[] {
+  const o = { ...DEFAULTS, ...options };
+  const random = seededRandom(o.seed);
+  const steps = routeSteps(route);
+  const boundaries = stepBoundaries(route);
+
+  // The first genuine change of direction. `depart` and `arrive` are not turns,
+  // and a `continue` is not one either.
+  const turnable = steps
+    .map((step, index) => ({ step, index }))
+    .filter(
+      ({ step }) =>
+        step.maneuver.kind === "turn" &&
+        step.maneuver.direction !== null &&
+        step.maneuver.direction !== "straight",
+    );
+  const chosen = turnable[options.turnIndex ?? 0] ?? null;
+  if (chosen === null) return cleanTrace(route, options);
+
+  // A step's maneuver happens at its START — the junction is where the step
+  // begins, not where it ends — so the driver must be taken to the boundary
+  // *entering* the chosen step. Pivoting at its end lands a step too late,
+  // where continuing straight is still the route and nothing diverges.
+  const turnAt = boundaries[chosen.index]?.startMeters ?? 0;
+  const truth = walkRoute(route, o.stepMeters);
+  const onRoute = truth.filter((t) => t.alongMeters <= turnAt);
+  const pivot = onRoute[onRoute.length - 1] ?? truth[0]!;
+
+  // Straight on, along the approach bearing the provider itself recorded.
+  const straight = chosen.step.maneuver.bearingBefore;
+  const rad = (straight * Math.PI) / 180;
+
+  const samples: NavigationSample[] = onRoute.map((t, i) => ({
+    coordinate: offsetMeters(
+      t.point,
+      (random() - 0.5) * 2 * o.noiseMeters,
+      (random() - 0.5) * 2 * o.noiseMeters,
+    ),
+    timestamp: o.startAt + i * o.intervalMs,
+    accuracyMeters: o.accuracyMeters,
+    headingDegrees: o.reportHeading ? t.bearing : null,
+    speedMps: o.reportSpeed ? o.stepMeters / (o.intervalMs / 1000) : null,
+  }));
+
+  const steps_ = Math.ceil((options.continueMeters ?? 300) / o.stepMeters);
+  for (let i = 1; i <= steps_; i++) {
+    const metres = i * o.stepMeters;
+    samples.push({
+      coordinate: offsetMeters(
+        pivot.point,
+        Math.sin(rad) * metres,
+        Math.cos(rad) * metres,
+      ),
+      timestamp: o.startAt + (onRoute.length + i - 1) * o.intervalMs,
+      accuracyMeters: o.accuracyMeters,
+      headingDegrees: o.reportHeading ? straight : null,
+      speedMps: o.reportSpeed ? o.stepMeters / (o.intervalMs / 1000) : null,
+    });
+  }
+
+  return samples;
+}
+
+/**
+ * Sits close to the route but travelling the opposite way along it.
+ *
+ * Isolates heading as evidence: the position alone is barely divergent, and a
+ * detector that ignores heading sees an ordinary drive.
+ */
+export function wrongWayTrace(
+  route: AtlasRoute,
+  options: TraceOptions & { atMeters?: number; samples?: number } = {},
+): NavigationSample[] {
+  const o = { ...DEFAULTS, ...options };
+  const truth = walkRoute(route, o.stepMeters);
+  const from = options.atMeters ?? 400;
+  const count = options.samples ?? 20;
+
+  const start = truth.findIndex((t) => t.alongMeters >= from);
+  const reversed = truth
+    .slice(Math.max(0, start - count), Math.max(1, start))
+    .reverse();
+
+  return reversed.map((t, i) => ({
+    coordinate: t.point,
+    timestamp: o.startAt + i * o.intervalMs,
+    accuracyMeters: o.accuracyMeters,
+    // Driving back down the line: the reported course is the reverse of the
+    // route's own bearing here.
+    headingDegrees: o.reportHeading ? (t.bearing + 180) % 360 : null,
+    speedMps: o.reportSpeed ? o.stepMeters / (o.intervalMs / 1000) : null,
+  }));
+}
+
 /** A clean drive with one wild fix in the middle. */
 export function gpsJumpTrace(
   route: AtlasRoute,
@@ -349,4 +465,58 @@ export function replay(
   const elapsedMs = performance.now() - started;
 
   return { states, final: state, elapsedMs };
+}
+
+export interface RerouteReplayResult {
+  readonly engine: ReplayResult;
+  readonly states: readonly RerouteState[];
+  readonly final: RerouteState;
+  /** Sample indices at which a reroute was confirmed. Empty means none. */
+  readonly triggeredAt: readonly number[];
+}
+
+/**
+ * Replays a trace through the engine AND the reroute machine, in lockstep.
+ *
+ * The same two modules the product runs, wired the same way — the controller's
+ * only extra job is fetching, and a trace has nothing to fetch. So "would this
+ * drive have rerouted, and when" is answerable in a millisecond, for a wrong
+ * turn, a frontage road, a tunnel or a car parked under a bridge.
+ *
+ * Requests are deliberately never resolved here: the machine parks in
+ * `triggered`, which is what makes `triggeredAt` a clean record of every moment
+ * Atlas would have spent a request. Lifecycle behaviour after that point is
+ * driven directly against the reducer, where responses can be ordered on
+ * purpose.
+ */
+export function replayReroute(
+  route: AtlasRoute,
+  samples: readonly NavigationSample[],
+  config: RerouteConfig = DEFAULT_REROUTE_CONFIG,
+): RerouteReplayResult {
+  const boundaries = stepBoundaries(route);
+  const engine = replay(route, samples, boundaries);
+
+  let state: RerouteState = FOLLOWING;
+  const states: RerouteState[] = [];
+  const triggeredAt: number[] = [];
+
+  engine.states.forEach((engineState, index) => {
+    const before = state;
+    state = rerouteReducer(
+      state,
+      {
+        type: "SAMPLED",
+        progress: engineState.progress,
+        now: samples[index]?.timestamp ?? 0,
+      },
+      config,
+    );
+    if (state.kind === "triggered" && before.kind !== "triggered") {
+      triggeredAt.push(index);
+    }
+    states.push(state);
+  });
+
+  return { engine, states, final: state, triggeredAt };
 }

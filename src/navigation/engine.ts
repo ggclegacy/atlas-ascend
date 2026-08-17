@@ -88,6 +88,17 @@ export interface NavigationProgress {
   readonly accuracyMeters: number | null;
   /** The corridor half-width in force, which scales with accuracy. */
   readonly corridorMeters: number;
+  /**
+   * Whether the last accepted fix was travelling somewhere the route does not
+   * go, at a speed that makes heading meaningful.
+   *
+   * Already computed for the confidence score; surfaced because rerouting
+   * needs it as *supporting* evidence — a heading that disagrees turns an
+   * ambiguous lateral offset into a confirmed departure faster. It never
+   * triggers anything on its own, which is why it is reported rather than
+   * acted on here.
+   */
+  readonly headingDisagrees: boolean;
 }
 
 /**
@@ -176,6 +187,7 @@ export function matchToRoute(
   route: AtlasRoute,
   point: Coordinate,
   fromMeters: number | null,
+  forwardBudgetMeters: number = Number.POSITIVE_INFINITY,
 ): RouteMatch | null {
   const { geometry, cumulative } = route;
   if (geometry.length < 2) return null;
@@ -203,7 +215,18 @@ export function matchToRoute(
   ) {
     const global = scanSegments(route, point, 0, geometry.length - 2);
     if (global !== null && (windowed === null || global.distanceMeters < windowed.distanceMeters)) {
-      return global;
+      // A route that crosses or doubles back on itself has two places that are
+      // genuinely nearest to the same point, and the whole-line scan cannot
+      // tell them apart — it returns whichever is a metre closer. Accepting it
+      // unconditionally teleports progress across a cloverleaf and reports the
+      // wrong maneuver at the worst possible moment.
+      //
+      // So a global match is only believed if the car could plausibly have
+      // travelled that far since the last fix. Backward matches are always
+      // allowed through: the caller's own backward tolerance handles those, and
+      // rejoining the route behind yourself is real.
+      const jump = global.progressMeters - fromMeters;
+      if (jump <= forwardBudgetMeters) return global;
     }
   }
 
@@ -335,6 +358,7 @@ export function initialState(route: AtlasRoute, now: number): EngineState {
       lastRejection: null,
       accuracyMeters: null,
       corridorMeters: T.CORRIDOR_MIN_M,
+      headingDisagrees: false,
     },
   };
 }
@@ -381,7 +405,18 @@ export function advance(
       ? memory.progressMeters
       : null;
 
-  const match = matchToRoute(route, sample.coordinate, searchFrom);
+  // How far the car could honestly have moved along the route since the last
+  // fix. Bounds the whole-line rescan so a self-intersecting route cannot jump
+  // progress to a different part of itself. Unbounded on the first fix and
+  // after a long gap, where there is no prior position to be plausible about.
+  const forwardBudget =
+    searchFrom === null
+      ? Number.POSITIVE_INFINITY
+      : T.MAX_PLAUSIBLE_SPEED_MPS * (gapMs / 1000) +
+        T.PLAUSIBILITY_SLACK_M +
+        sample.accuracyMeters;
+
+  const match = matchToRoute(route, sample.coordinate, searchFrom, forwardBudget);
   if (match === null) {
     return {
       memory,
@@ -432,6 +467,10 @@ export function advance(
     ? (memory.divergentSinceMs ?? sample.timestamp)
     : null;
 
+  // Computed unconditionally so it can be reported: rerouting reads it as
+  // supporting evidence even on fixes too vague to accumulate confidence.
+  const headingConflict = headingDisagrees(route, match, sample);
+
   const confidence = canAccumulate
     ? offRouteConfidence({
         samples: divergentSamples,
@@ -439,7 +478,7 @@ export function advance(
         distance: match.distanceMeters,
         previousDistance: memory.lastDistanceFromRoute,
         corridor,
-        headingPenalty: headingDisagrees(route, match, sample),
+        headingPenalty: headingConflict,
       })
     : memory.confidence * T.OFF_ROUTE_RECOVERY_FACTOR;
 
@@ -496,6 +535,7 @@ export function advance(
       lastRejection: null,
       accuracyMeters: sample.accuracyMeters,
       corridorMeters: corridor,
+      headingDisagrees: headingConflict,
     },
   };
 }

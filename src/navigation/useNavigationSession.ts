@@ -39,6 +39,15 @@ export interface NavigationSessionValue {
   readonly progress: NavigationProgress;
   /** True once the engine has accepted a first fix. */
   readonly located: boolean;
+  /**
+   * The last fix the engine accepted, or `null` before the first.
+   *
+   * Exposed for rerouting, which needs a real position to route *from* —
+   * one that has already passed the engine's accuracy, ordering and
+   * plausibility checks, and which is not snapped to the route the driver has
+   * just left.
+   */
+  readonly lastSample: NavigationSample | null;
   readonly wakeLock: WakeLockStatus;
   /** Fixes accepted this session, for diagnostics. */
   readonly acceptedSamples: number;
@@ -71,17 +80,38 @@ export function useNavigationSession(
   const [wakeLock, setWakeLock] = useState<WakeLockStatus>("idle");
   const [progress, setProgress] = useState<NavigationProgress | null>(null);
 
-  // Reset whenever the route changes — including a reroute later on.
+  /**
+   * Rebinds the engine whenever the route changes — a new drive, or a reroute.
+   *
+   * The subtlety is the reroute case. A bare `initialState` reports no position
+   * and no freshness until the next fix, which flips the interface back to
+   * "locating you" and flashes a GPS-lost banner a second after adopting a
+   * perfectly good route. So the last fix the previous engine accepted is
+   * replayed into the new one immediately: same sample, same acceptance rules,
+   * matched against the new geometry. The driver is located on the replacement
+   * route in the same tick it is adopted, and no state is invented to do it.
+   *
+   * Sample counters survive a reroute for the same reason — they describe the
+   * drive, not the route.
+   */
   useEffect(() => {
     if (route === null) {
       engine.current = null;
       setProgress(null);
       return;
     }
-    engine.current = initialState(route, Date.now());
-    counts.current = { accepted: 0, rejected: 0 };
-    setProgress(engine.current.progress);
-  }, [route]);
+
+    const carried = engine.current?.memory.lastSample ?? null;
+    let next = initialState(route, Date.now());
+    if (carried !== null) {
+      next = advance(route, boundaries, next, carried, Date.now());
+    } else {
+      counts.current = { accepted: 0, rejected: 0 };
+    }
+
+    engine.current = next;
+    setProgress(next.progress);
+  }, [route, boundaries]);
 
   const push = useCallback(
     (sample: NavigationSample) => {
@@ -148,6 +178,10 @@ export function useNavigationSession(
   return {
     progress: progress ?? FALLBACK,
     located: (progress?.lastAcceptedAt ?? null) !== null,
+    // Read from the engine rather than mirrored into state: every path that
+    // changes it also calls `setProgress`, so the render that observes a new
+    // position observes the fix behind it in the same pass.
+    lastSample: engine.current?.memory.lastSample ?? null,
     wakeLock,
     acceptedSamples: counts.current.accepted,
     rejectedSamples: counts.current.rejected,
@@ -179,4 +213,5 @@ const FALLBACK: NavigationProgress = {
   lastRejection: null,
   accuracyMeters: null,
   corridorMeters: 30,
+  headingDisagrees: false,
 };

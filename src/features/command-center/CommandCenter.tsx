@@ -75,6 +75,7 @@ import {
   NavigationHud,
 } from "@/features/navigation/NavigationHud";
 import { useNavigationSession } from "@/navigation/useNavigationSession";
+import { useRerouting } from "@/navigation/useRerouting";
 import {
   CAMERA,
   cameraChanged,
@@ -340,6 +341,42 @@ export function CommandCenter() {
   const session = sessionOf(nav);
   const navSession = useNavigationSession(session?.route ?? null, location);
 
+  /**
+   * Whether a drive is live, readable from an effect without becoming one of
+   * its dependencies.
+   *
+   * The route effect must behave differently mid-drive, but adding the phase to
+   * its dependency list would re-run it — and re-issue `setRoutes` — on every
+   * unrelated phase change.
+   */
+  const guidingRef = useRef(false);
+  guidingRef.current = nav.phase === "navigating";
+
+  /**
+   * REROUTING.
+   *
+   * The controller owns the request; the reducer owns the swap. `onAdopt`
+   * carries the destination it routed to so the reducer can refuse a response
+   * that outlived its trip — the guard lives there rather than here, because
+   * here is exactly where it would eventually be forgotten.
+   */
+  const reroute = useRerouting({
+    enabled: nav.phase === "navigating",
+    destination: session?.destination ?? null,
+    progress: nav.phase === "navigating" ? navSession.progress : null,
+    lastSample: navSession.lastSample,
+    routing,
+    onAdopt: useCallback(
+      (nextRoutes: readonly AtlasRoute[], forDestination: Destination) =>
+        dispatch({
+          type: "REROUTE_ADOPTED",
+          destinationId: forDestination.id,
+          routes: nextRoutes,
+        }),
+      [],
+    ),
+  });
+
   // Guidance is held back until the engine has genuinely located the driver.
   useEffect(() => {
     if (nav.phase === "navigationStarting" && navSession.located) {
@@ -451,6 +488,13 @@ export function CommandCenter() {
     }
 
     map.setRoutes(routes, routes[0]?.id ?? null);
+
+    // A reroute changes the route set mid-drive, and framing it would throw the
+    // camera to a route overview while the driver is moving — the worst
+    // possible moment to lose the road ahead. Adoption is a data write to
+    // layers that already exist; the driving camera keeps its own pitch,
+    // bearing and zoom and simply follows the new line.
+    if (guidingRef.current) return;
 
     // Frame into the space the sheet does not occupy. Centring the route
     // geometrically would put half of it behind its own preview.
@@ -568,6 +612,31 @@ export function CommandCenter() {
             route={session.route}
             onSample={navSession.injectSample}
             onActiveChange={navSession.setSimulated}
+            onForceReroute={reroute.forceReroute}
+            rerouteState={reroute.state.kind}
+          />
+        )}
+
+        {/* While guiding, diagnostics move to the top rail.
+            The bottom stack is hidden during a drive, which is exactly when the
+            rerouting numbers matter — Sub-phase 8 has to read the evidence
+            against the thresholds from a moving car, and a readout that only
+            exists before the drive cannot answer "why did it not reroute". */}
+        {debug && guiding && (
+          <NavigationDiagnostics
+            state={nav}
+            now={previewNow}
+            drawnRouteId={drawn.id}
+            drawnLayerCount={drawn.layers}
+            progress={navSession.progress}
+            wakeLock={navSession.wakeLock}
+            samples={{
+              accepted: navSession.acceptedSamples,
+              rejected: navSession.rejectedSamples,
+            }}
+            reroute={reroute.state}
+            stats={reroute.stats}
+            clock={Date.now()}
           />
         )}
 
@@ -577,6 +646,7 @@ export function CommandCenter() {
             progress={navSession.progress}
             camera={nav.camera}
             degraded={navSession.progress.freshness !== "fresh"}
+            reroute={reroute.state}
             onRecenter={recenterNavigation}
             onOverview={showOverview}
             onEnd={cancelNavigation}
@@ -647,7 +717,7 @@ export function CommandCenter() {
             />
           </div>
 
-          {debug && (
+          {debug && !guiding && (
             <NavigationDiagnostics
               state={nav}
               now={previewNow}
@@ -659,6 +729,9 @@ export function CommandCenter() {
                 accepted: navSession.acceptedSamples,
                 rejected: navSession.rejectedSamples,
               }}
+              reroute={reroute.state}
+              stats={reroute.stats}
+              clock={Date.now()}
             />
           )}
 

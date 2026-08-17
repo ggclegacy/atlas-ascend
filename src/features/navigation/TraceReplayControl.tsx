@@ -5,7 +5,10 @@ import type { AtlasRoute } from "@/routing/types";
 import type { NavigationSample } from "@/navigation/sample";
 import {
   cleanTrace,
+  excursionTrace,
   gpsJumpTrace,
+  missedTurnTrace,
+  parallelRoadTrace,
   stationaryTrace,
   tunnelTrace,
   wrongTurnTrace,
@@ -52,6 +55,37 @@ const SCENARIOS = {
     build: (r: AtlasRoute) =>
       stationaryTrace(r, { atMeters: 250, samples: 60, reportSpeed: false }),
   },
+
+  // --- Sub-phase 6: the rerouting scenarios ---
+  //
+  // The first three should each end in a reroute; the last two must not. That
+  // pairing is the point — a control that only demonstrates success proves
+  // nothing about a detector whose hardest job is staying quiet.
+  missedTurn: {
+    label: "Missed turn →⟲",
+    build: (r: AtlasRoute) =>
+      missedTurnTrace(r, { stepMeters: 18, continueMeters: 600 }),
+  },
+  earlyTurn: {
+    label: "Early wrong turn →⟲",
+    build: (r: AtlasRoute) =>
+      wrongTurnTrace(r, { stepMeters: 18, turnAtMeters: 200, departMeters: 500 }),
+  },
+  parallel: {
+    label: "Parallel road →⟲",
+    build: (r: AtlasRoute) =>
+      parallelRoadTrace(r, { stepMeters: 14, offsetMeters: 45 }),
+  },
+  rejoin: {
+    label: "Leave & rejoin (no reroute)",
+    build: (r: AtlasRoute) =>
+      excursionTrace(r, { stepMeters: 16, atMeters: 300, peakMeters: 60 }),
+  },
+  poorGps: {
+    label: "Poor GPS (no reroute)",
+    build: (r: AtlasRoute) =>
+      cleanTrace(r, { stepMeters: 16, noiseMeters: 38, accuracyMeters: 34 }),
+  },
 } as const;
 
 export type ScenarioKey = keyof typeof SCENARIOS;
@@ -60,10 +94,16 @@ export function TraceReplayControl({
   route,
   onSample,
   onActiveChange,
+  onForceReroute,
+  rerouteState,
 }: {
   route: AtlasRoute;
   onSample: (sample: NavigationSample) => void;
   onActiveChange: (active: boolean) => void;
+  /** Skips detection entirely and requests a route now. Debug only. */
+  onForceReroute?: () => void;
+  /** Echoed back so the scenario and its outcome are readable together. */
+  rerouteState?: string;
 }) {
   const [scenario, setScenario] = useState<ScenarioKey>("clean");
   const [running, setRunning] = useState(false);
@@ -170,6 +210,27 @@ export function TraceReplayControl({
               {x}×
             </button>
           ))}
+
+          {onForceReroute && (
+            <button
+              type="button"
+              onClick={onForceReroute}
+              title="Skip detection and request a replacement route now"
+              style={{
+                fontFamily: "inherit",
+                fontSize: 10,
+                marginLeft: "auto",
+                padding: "4px 8px",
+                borderRadius: 6,
+                cursor: "pointer",
+                border: "1px solid rgba(255,255,255,0.16)",
+                background: "transparent",
+                color: "#A5A2AC",
+              }}
+            >
+              Force reroute
+            </button>
+          )}
         </div>
 
         <Row label="scenario" value={SCENARIOS[scenario].label} />
@@ -179,6 +240,13 @@ export function TraceReplayControl({
           value={running ? "yes — real GPS suspended" : "no"}
           verdict={running ? "warn" : "neutral"}
         />
+        {rerouteState !== undefined && (
+          <Row
+            label="reroute"
+            value={rerouteState}
+            verdict={rerouteState === "following" ? "ok" : "warn"}
+          />
+        )}
       </Panel>
     </div>
   );

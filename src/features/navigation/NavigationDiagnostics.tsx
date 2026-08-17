@@ -3,6 +3,12 @@
 import { Panel, Row } from "@/features/debug/DebugReadout";
 import { estimateArrival, formatArrivalClock } from "@/navigation/eta";
 import type { NavigationProgress } from "@/navigation/engine";
+import { type RerouteState, confirmWindowMs } from "@/navigation/reroute";
+import type { RerouteStats } from "@/navigation/useRerouting";
+import {
+  REROUTE_CONFIRM_SAMPLES,
+  REROUTE_MIN_DISTANCE_M,
+} from "@/navigation/thresholds";
 import type { WakeLockStatus } from "@/navigation/wakeLock";
 import {
   type NavigationState,
@@ -30,6 +36,9 @@ export function NavigationDiagnostics({
   progress = null,
   wakeLock = "idle",
   samples,
+  reroute,
+  stats,
+  clock,
 }: {
   state: NavigationState;
   now: number;
@@ -40,11 +49,23 @@ export function NavigationDiagnostics({
   progress?: NavigationProgress | null;
   wakeLock?: WakeLockStatus;
   samples?: { accepted: number; rejected: number };
+  reroute?: RerouteState;
+  stats?: RerouteStats;
+  /**
+   * Live wall clock, for the reroute countdowns.
+   *
+   * Separate from `now`, which is frozen at preview time on purpose so the
+   * arrival clock does not tick while the driver is reading it. A countdown
+   * that does not count down is worse than useless in a debug panel.
+   */
+  clock?: number;
 }) {
   const destination = destinationOf(state);
   const routes = routesOf(state);
   const selected = selectedRouteOf(state);
   const arrival = selected ? estimateArrival(selected, now) : null;
+
+  const live = clock ?? now;
 
   // Short ids: the full one is provider:timestamp:index and wraps three lines
   // on a phone for no diagnostic gain.
@@ -145,6 +166,102 @@ export function NavigationDiagnostics({
                 label="samples"
                 value={`${samples.accepted} accepted / ${samples.rejected} rejected`}
               />
+            )}
+          </>
+        )}
+
+        {/* Rerouting. Structured rather than a log line, because the question
+            being answered in the field is always "why did it not reroute" —
+            and that is answered by the gap between the evidence and the
+            thresholds, which has to be readable side by side. */}
+        {reroute && progress && (
+          <>
+            <Row label="—" value="rerouting" />
+            <Row
+              label="reroute state"
+              value={reroute.kind}
+              verdict={
+                reroute.kind === "following" || reroute.kind === "settling"
+                  ? "ok"
+                  : reroute.kind === "failed"
+                    ? "bad"
+                    : "warn"
+              }
+            />
+            <Row
+              label="from route"
+              value={`${Math.round(progress.distanceFromRouteMeters)} m`}
+            />
+            <Row
+              label="trigger floor"
+              value={`${Math.max(REROUTE_MIN_DISTANCE_M, Math.round(progress.corridorMeters))} m`}
+            />
+            <Row
+              label="heading conflict"
+              value={progress.headingDisagrees ? "yes" : "no"}
+              verdict={progress.headingDisagrees ? "warn" : "ok"}
+            />
+            {reroute.kind === "suspected" && (
+              <>
+                <Row label="reason" value={reroute.reason} />
+                <Row
+                  label="held"
+                  value={`${Math.round((live - reroute.since) / 100) / 10}s / ${
+                    confirmWindowMs(reroute.reason) / 1000
+                  }s`}
+                />
+                <Row
+                  label="evidence"
+                  value={`${reroute.samples} / ${REROUTE_CONFIRM_SAMPLES} samples`}
+                />
+                <Row
+                  label="worst"
+                  value={`${Math.round(reroute.worstDistanceMeters)} m`}
+                />
+              </>
+            )}
+            {reroute.kind === "requesting" && (
+              <>
+                <Row label="request" value={reroute.requestId} />
+                <Row label="reason" value={reroute.reason} />
+                <Row label="attempt" value={reroute.attempt} />
+              </>
+            )}
+            {reroute.kind === "failed" && (
+              <>
+                <Row label="failure" value={reroute.failure} verdict="bad" />
+                <Row label="attempt" value={reroute.attempt} />
+                <Row
+                  label="retry in"
+                  value={`${Math.max(0, Math.round((reroute.retryAt - live) / 1000))}s`}
+                />
+              </>
+            )}
+            {reroute.kind === "settling" && (
+              <Row
+                label="settles in"
+                value={`${Math.max(0, Math.round((reroute.until - live) / 1000))}s`}
+              />
+            )}
+            {stats && (
+              <>
+                <Row
+                  label="requests"
+                  value={`${stats.requests} sent / ${stats.adopted} adopted`}
+                />
+                <Row label="last reason" value={stats.lastReason ?? "—"} />
+                <Row
+                  label="last failure"
+                  value={stats.lastFailure ?? "—"}
+                  verdict={stats.lastFailure === null ? "ok" : "bad"}
+                />
+                <Row
+                  label="last round-trip"
+                  value={
+                    stats.lastDurationMs === null ? "—" : `${stats.lastDurationMs} ms`
+                  }
+                />
+              </>
             )}
           </>
         )}

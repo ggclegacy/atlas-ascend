@@ -535,3 +535,124 @@ describe("route lifecycle leaves nothing orphaned", () => {
     vi.restoreAllMocks();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Sub-phase 6: adopting a rerouted line mid-drive
+// ---------------------------------------------------------------------------
+
+describe("adopting a replacement route mid-drive", () => {
+  beforeEach(stubDocument);
+  afterEach(() => vi.unstubAllGlobals());
+
+  /** A different line, so "the geometry changed" is actually observable. */
+  const REPLACEMENT: readonly Coordinate[] = LINE.map((c) => ({
+    latitude: c.latitude + 0.004,
+    longitude: c.longitude + 0.004,
+  }));
+
+  it("swaps the drawn geometry to the replacement", async () => {
+    const map = fakeMap();
+    const handle = await makeHandle(map);
+
+    handle.setRoutes([route(LINE, "original")], "original");
+    handle.setRoutes([route(REPLACEMENT, "reroute-1")], "reroute-1");
+
+    const primary = map.sources.get(ROUTE_SOURCE_PRIMARY)!.data as {
+      geometry?: { coordinates: [number, number][] };
+    };
+    // The first vertex is the replacement's, not the original's — a swap that
+    // left stale geometry behind would still pass a layer-count check.
+    expect(primary.geometry?.coordinates[0]?.[1]).toBeCloseTo(
+      REPLACEMENT[0]!.latitude,
+      6,
+    );
+    expect(handle.inspect().route.primaryRouteId).toBe("reroute-1");
+    handle.destroy();
+  });
+
+  it("drops the previous alternates instead of leaving them on the map", async () => {
+    // Rerouting asks for no alternates, so the ghosts of the preview's
+    // alternates must not survive underneath the new gold line.
+    const map = fakeMap();
+    const handle = await makeHandle(map);
+
+    handle.setRoutes([route(LINE, "a"), route(LINE, "b")], "a");
+    expect(handle.inspect().route.alternativeCount).toBe(1);
+
+    handle.setRoutes([route(REPLACEMENT, "reroute-1")], "reroute-1");
+    expect(handle.inspect().route.alternativeCount).toBe(0);
+
+    const alternates = map.sources.get(ROUTE_SOURCE_ALTERNATES)!.data as {
+      features?: unknown[];
+    };
+    expect(alternates.features).toHaveLength(0);
+    handle.destroy();
+  });
+
+  it("moves no camera of its own accord", async () => {
+    // Framing is the Command Center's call, and mid-drive it deliberately
+    // declines. The provider must not reach around that decision.
+    const map = fakeMap();
+    const moved = { easeTo: 0, fitBounds: 0, flyTo: 0, jumpTo: 0 };
+    Object.assign(map, {
+      easeTo: () => void moved.easeTo++,
+      fitBounds: () => void moved.fitBounds++,
+      flyTo: () => void moved.flyTo++,
+      jumpTo: () => void moved.jumpTo++,
+    });
+    const handle = await makeHandle(map);
+
+    handle.setRoutes([route(LINE, "original")], "original");
+    handle.setRoutes([route(REPLACEMENT, "reroute-1")], "reroute-1");
+
+    expect(moved).toEqual({ easeTo: 0, fitBounds: 0, flyTo: 0, jumpTo: 0 });
+    handle.destroy();
+  });
+
+  it("keeps the same layer stack across many consecutive reroutes", async () => {
+    // A long drive with a stubborn driver: the stack must be identical at the
+    // end, and no layer may have been recreated along the way.
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const map = fakeMap();
+    const handle = await makeHandle(map);
+
+    handle.setRoutes([route(LINE, "original")], "original");
+    const stack = [...map.layers];
+
+    for (let i = 0; i < 12; i++) {
+      handle.setRoutes([route(REPLACEMENT, `reroute-${i}`)], `reroute-${i}`);
+    }
+
+    expect(map.layers).toEqual(stack);
+    expect(map.layers).toHaveLength(ROUTE_LAYER_IDS.length);
+    expect(handle.inspect().route.layerCount).toBe(ROUTE_LAYER_IDS.length);
+    handle.destroy();
+    vi.restoreAllMocks();
+  });
+
+  it("keeps the destination marker alive across the swap", async () => {
+    // Same trip, same destination. A marker that blinks out on every reroute
+    // reads as the destination being lost.
+    const map = fakeMap();
+    let removals = 0;
+    class CountingMarker extends FakeMarker {
+      override remove() {
+        removals++;
+      }
+    }
+    const { MapboxHandle } = await import("@/map/mapbox/MapboxMapProvider");
+    const handle = new MapboxHandle(
+      map as never,
+      { Marker: CountingMarker } as never,
+      CONFIG,
+      { getBoundingClientRect: () => ({ width: 390, height: 844 }) } as never,
+    );
+    map.emit("style.load");
+
+    handle.setRoutes([route(LINE, "original")], "original");
+    handle.setRoutes([route(REPLACEMENT, "reroute-1")], "reroute-1");
+
+    expect(removals).toBe(0);
+    handle.destroy();
+  });
+});
