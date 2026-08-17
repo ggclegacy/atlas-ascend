@@ -184,6 +184,21 @@ export interface MapHandle {
   clearRoutes(): void;
 
   /**
+   * Move the camera for driving.
+   *
+   * Separate from `setCamera` because it takes padding — which is what seats
+   * the driver low on the screen with the road ahead above — and an explicit
+   * duration matched to the GPS fix rate, so consecutive moves join up into
+   * continuous motion instead of a series of animations interrupting each
+   * other.
+   */
+  setNavigationCamera(
+    camera: MapCamera,
+    padding: MapEdgePadding,
+    durationMs: number,
+  ): void;
+
+  /**
    * Frame a geographic box into the visible part of the viewport.
    *
    * `padding` is in CSS pixels per edge and is deliberately asymmetric in

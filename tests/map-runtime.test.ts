@@ -412,6 +412,45 @@ describe("MapboxHandle event replay", () => {
   });
 });
 
+describe("user interaction detection", () => {
+  beforeEach(() => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it("ignores camera moves the app itself made", () => {
+    // THE DEFECT: the driving camera changes pitch and bearing on the first
+    // fix, Mapbox emits `pitchstart`, and without checking `originalEvent`
+    // the app reads that as the driver panning — follow-mode ends about a
+    // second into every drive.
+    const map = createFakeMap();
+    const handle = createHandle(map);
+    const onUser = vi.fn();
+    handle.on("userInteraction", onUser);
+
+    for (const event of ["dragstart", "rotatestart", "pitchstart", "zoomstart"]) {
+      map.emit(event, {});
+    }
+    expect(onUser).not.toHaveBeenCalled();
+    handle.destroy();
+  });
+
+  it("reports a genuine gesture", () => {
+    const map = createFakeMap();
+    const handle = createHandle(map);
+    const onUser = vi.fn();
+    handle.on("userInteraction", onUser);
+
+    // `originalEvent` is present only when real input caused the move.
+    map.emit("dragstart", { originalEvent: { type: "pointerdown" } });
+    expect(onUser).toHaveBeenCalledTimes(1);
+
+    map.emit("zoomstart", { originalEvent: { type: "wheel" } });
+    expect(onUser).toHaveBeenCalledTimes(2);
+    handle.destroy();
+  });
+});
+
 describe("MapboxHandle watchdog", () => {
   beforeEach(() => {
     vi.spyOn(console, "error").mockImplementation(() => {});

@@ -2,6 +2,8 @@
 
 import { Panel, Row } from "@/features/debug/DebugReadout";
 import { estimateArrival, formatArrivalClock } from "@/navigation/eta";
+import type { NavigationProgress } from "@/navigation/engine";
+import type { WakeLockStatus } from "@/navigation/wakeLock";
 import {
   type NavigationState,
   destinationOf,
@@ -25,12 +27,19 @@ export function NavigationDiagnostics({
   now,
   drawnRouteId,
   drawnLayerCount,
+  progress = null,
+  wakeLock = "idle",
+  samples,
 }: {
   state: NavigationState;
   now: number;
   /** What the map reports it is drawing, not what state believes. */
   drawnRouteId: string | null;
   drawnLayerCount: number;
+  /** Live engine output while guiding. */
+  progress?: NavigationProgress | null;
+  wakeLock?: WakeLockStatus;
+  samples?: { accepted: number; rejected: number };
 }) {
   const destination = destinationOf(state);
   const routes = routesOf(state);
@@ -90,6 +99,54 @@ export function NavigationDiagnostics({
         )}
         {state.phase === "routeFailed" && (
           <Row label="failure" value={state.failure} verdict="bad" />
+        )}
+
+        {/* Live driving state. The interesting failures are disagreements —
+            a confident maneuver distance on a lost fix, or camera mode stuck
+            in exploring after a recenter. */}
+        {progress && (
+          <>
+            <Row label="—" value="driving" />
+            <Row
+              label="camera"
+              value={state.phase === "navigating" ? state.camera : "—"}
+              verdict={state.phase === "navigating" && state.camera === "following" ? "ok" : "warn"}
+            />
+            <Row
+              label="GPS freshness"
+              value={progress.freshness}
+              verdict={progress.freshness === "fresh" ? "ok" : "warn"}
+            />
+            <Row
+              label="accuracy"
+              value={progress.accuracyMeters === null ? "—" : `${Math.round(progress.accuracyMeters)} m`}
+            />
+            <Row label="engine status" value={progress.status} />
+            <Row label="step" value={progress.stepIndex} />
+            <Row
+              label="to maneuver"
+              value={`${Math.round(progress.distanceToManeuverMeters)} m`}
+            />
+            <Row label="off route" value={progress.offRoute}
+              verdict={progress.offRoute === "on-route" ? "ok" : "bad"} />
+            <Row
+              label="off-route conf."
+              value={progress.offRouteConfidence.toFixed(2)}
+            />
+            <Row label="from route" value={`${Math.round(progress.distanceFromRouteMeters)} m`} />
+            <Row label="progress" value={`${Math.round(progress.progressMeters)} m`} />
+            <Row
+              label="wake lock"
+              value={wakeLock}
+              verdict={wakeLock === "active" ? "ok" : wakeLock === "unsupported" ? "warn" : "neutral"}
+            />
+            {samples && (
+              <Row
+                label="samples"
+                value={`${samples.accepted} accepted / ${samples.rejected} rejected`}
+              />
+            )}
+          </>
         )}
       </Panel>
     </div>

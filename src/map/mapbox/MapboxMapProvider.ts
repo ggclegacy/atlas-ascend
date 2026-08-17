@@ -330,13 +330,27 @@ export class MapboxHandle implements MapHandle {
       this.resizeObserver.observe(container);
     }
 
-    // `dragstart`/`rotatestart` fire only for genuine user gestures, not for
-    // programmatic camera moves — which is exactly the distinction needed to
-    // know when to break follow-mode.
-    const onUser = () => this.emit("userInteraction");
-    map.on("dragstart", onUser);
-    map.on("rotatestart", onUser);
-    map.on("pitchstart", onUser);
+    // These fire for BOTH user gestures and programmatic camera moves. The
+    // distinction is `originalEvent`, which is present only when a real input
+    // caused it.
+    //
+    // Without that check the driving camera disables itself: it changes pitch
+    // and bearing on the first fix, Mapbox emits `pitchstart`, the app reads
+    // that as the driver panning, and follow-mode ends about a second into
+    // every drive. Observed exactly that way — the Recenter control appearing
+    // during a simulated drive nobody had touched.
+    const onUser = (event: unknown) => {
+      const originating = (event as { originalEvent?: unknown } | undefined)
+        ?.originalEvent;
+      if (originating === undefined) return;
+      this.emit("userInteraction");
+    };
+    // Mapbox types these events per-name, and `zoomstart` in particular does
+    // not declare `originalEvent` even though it carries one for a gesture —
+    // hence the single loosely-typed handler and the runtime check above.
+    for (const name of ["dragstart", "rotatestart", "pitchstart", "zoomstart"] as const) {
+      map.on(name, onUser as never);
+    }
 
     map.on("moveend", () => {
       const c = map.getCenter();
@@ -739,6 +753,30 @@ export class MapboxHandle implements MapHandle {
     }
     this.routeLayersAttached = false;
     this.pendingRouteApply = false;
+  }
+
+  setNavigationCamera(
+    camera: MapCamera,
+    padding: MapEdgePadding,
+    durationMs: number,
+  ): void {
+    if (this.destroyed) return;
+
+    this.map.easeTo({
+      center: [camera.center.longitude, camera.center.latitude],
+      zoom: camera.zoom,
+      pitch: camera.pitch,
+      bearing: camera.bearing,
+      padding,
+      duration: durationMs,
+      // Linear, not eased. An eased move accelerates and decelerates between
+      // every pair of fixes, which reads as the car repeatedly lurching; at a
+      // steady speed the camera should move at a steady speed.
+      easing: (t: number) => t,
+      // This is the app tracking the driver, not the driver moving the map —
+      // it must not clear follow-mode via the userInteraction listener.
+      essential: true,
+    });
   }
 
   frameBounds(

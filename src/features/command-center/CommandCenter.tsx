@@ -35,6 +35,7 @@ import {
   type MapConfiguration,
   type MapPerspective,
   PERSPECTIVES,
+  type MapCamera,
   metersPerSecondToMph,
   perspectiveLabel,
   pitchFor,
@@ -54,7 +55,9 @@ import {
   type NavigationFailure,
   destinationOf,
   type NavigationState,
+  isGuiding,
   navigationReducer,
+  sessionOf,
   routesOf,
   selectedRouteOf,
 } from "@/navigation/machine";
@@ -64,6 +67,21 @@ import {
 } from "@/navigation/framing";
 import { AtlasRouting } from "@/routing/AtlasRouting";
 import { NavigationDiagnostics } from "@/features/navigation/NavigationDiagnostics";
+import { TraceReplayControl } from "@/features/navigation/TraceReplayControl";
+import {
+  HUD_CONTROLS_HEIGHT,
+  HUD_HEIGHT,
+  NavigationAcquiring,
+  NavigationHud,
+} from "@/features/navigation/NavigationHud";
+import { useNavigationSession } from "@/navigation/useNavigationSession";
+import {
+  CAMERA,
+  cameraChanged,
+  followCamera,
+  remainingRouteBounds,
+} from "@/navigation/camera";
+import { HEADING_MIN_SPEED_MPS } from "@/navigation/thresholds";
 import {
   NavigationStarting,
   RouteFailure,
@@ -193,7 +211,13 @@ export function CommandCenter() {
   // A hand gesture breaks follow-mode; the recenter button restores it. This
   // is the behavior every good navigation app has, and its absence is felt
   // immediately.
-  const handleUserInteraction = useCallback(() => setFollowing(false), []);
+  const handleUserInteraction = useCallback(() => {
+    setFollowing(false);
+    // While guiding, a deliberate gesture suspends the driving camera. It is
+    // never overridden on the next fix: fighting a pan is the single most
+    // infuriating thing a navigation app does.
+    dispatch({ type: "MAP_EXPLORED" });
+  }, []);
 
   const cyclePerspective = useCallback(() => {
     const index = PERSPECTIVES.indexOf(perspective);
@@ -309,6 +333,95 @@ export function CommandCenter() {
     if (destination !== null) void requestRoute(destination);
   }, [nav, requestRoute]);
 
+  /**
+   * The live engine. Mounted unconditionally with a null route outside a
+   * drive, so the hook order never changes.
+   */
+  const session = sessionOf(nav);
+  const navSession = useNavigationSession(session?.route ?? null, location);
+
+  // Guidance is held back until the engine has genuinely located the driver.
+  useEffect(() => {
+    if (nav.phase === "navigationStarting" && navSession.located) {
+      dispatch({ type: "NAVIGATION_READY" });
+    }
+  }, [nav.phase, navSession.located]);
+
+  /**
+   * The driving camera.
+   *
+   * Imperative, and deliberately outside React's render cycle: the map owns a
+   * render loop, and driving camera updates through component state would put
+   * a reconciliation between every GPS fix and the frame it produces.
+   */
+  const bearingRef = useRef(0);
+  const lastCameraRef = useRef<MapCamera | null>(null);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    const route = session?.route;
+    if (!map || !route || nav.phase !== "navigating") return;
+    // Exploring means the driver is in charge. Overview and recentering are
+    // one-shot moves handled where they are triggered.
+    if (nav.camera !== "following") return;
+
+    const target = followCamera({
+      route,
+      progress: navSession.progress,
+      headingDegrees: isAvailable(location.heading) ? location.heading.value : null,
+      speedMps: isAvailable(location.speed) ? location.speed.value : null,
+      previousBearing: bearingRef.current,
+      minSpeedMps: HEADING_MIN_SPEED_MPS,
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+      hudHeight: HUD_HEIGHT,
+      controlsHeight: HUD_CONTROLS_HEIGHT,
+      safeArea: readSafeAreaInsets(),
+    });
+
+    const next: MapCamera = {
+      center: target.center,
+      zoom: target.zoom,
+      pitch: target.pitch,
+      bearing: target.bearing,
+    };
+
+    // Re-issuing a near-identical move at 1Hz is what makes a map look like it
+    // is vibrating rather than tracking.
+    if (!cameraChanged(lastCameraRef.current, target)) return;
+
+    bearingRef.current = target.bearing;
+    lastCameraRef.current = next;
+    map.setNavigationCamera(next, target.padding, CAMERA.FOLLOW_DURATION_MS);
+  }, [nav.phase, nav.phase === "navigating" ? nav.camera : null, navSession.progress, session?.route, location.heading, location.speed]);
+
+  const recenterNavigation = useCallback(() => {
+    dispatch({ type: "RECENTER" });
+    lastCameraRef.current = null;
+    // The follow effect takes over on the next fix; settling immediately
+    // avoids stranding the mode if no fix arrives for a second.
+    window.setTimeout(() => dispatch({ type: "RECENTER_SETTLED" }), 60);
+  }, []);
+
+  const showOverview = useCallback(() => {
+    const map = mapRef.current;
+    const route = session?.route;
+    if (!map || !route) return;
+    dispatch({ type: "SHOW_OVERVIEW" });
+    lastCameraRef.current = null;
+
+    // Only what is left: a driver forty minutes in does not need to see where
+    // they started, and including it shrinks the part they care about.
+    map.frameBounds(
+      remainingRouteBounds(route, navSession.progress),
+      routePreviewPadding(
+        { width: window.innerWidth, height: window.innerHeight },
+        HUD_CONTROLS_HEIGHT + 40,
+        readSafeAreaInsets(),
+      ),
+      { maxZoom: ROUTE_OVERVIEW_MAX_ZOOM, transition: "cinematic" },
+    );
+  }, [session?.route, navSession.progress]);
+
   const startDrive = useCallback(() => {
     const origin = isAvailable(location.fix)
       ? location.fix.value.coordinate
@@ -388,6 +501,8 @@ export function CommandCenter() {
 
   /** True once a destination is committed to — anything past browsing. */
   const navActive = nav.phase !== "idle" && nav.phase !== "searching";
+  /** True once guidance is live: the interface simplifies to driving. */
+  const guiding = isGuiding(nav);
 
   const simulationNotes = useMemo(() => {
     const notes: string[] = [];
@@ -434,7 +549,10 @@ export function CommandCenter() {
         className="atlas-scrim-bottom pointer-events-none absolute inset-x-0 bottom-0 z-10 h-72"
       />
 
-      {/* ---------- Content ---------- */}
+      {/* ---------- Content ----------
+          While guiding, the top rail — vehicle chip, perspective, layers —
+          is gone entirely rather than dimmed. A control that cannot be used
+          safely at speed should not be occupying attention at speed. */}
       <div
         className="pointer-events-none absolute inset-0 z-20 flex flex-col"
         style={{
@@ -445,7 +563,36 @@ export function CommandCenter() {
         }}
       >
         {/* ---------- Top rail ---------- */}
-        <div className="pointer-events-auto flex flex-col gap-3">
+        {debug && session && (
+          <TraceReplayControl
+            route={session.route}
+            onSample={navSession.injectSample}
+            onActiveChange={navSession.setSimulated}
+          />
+        )}
+
+        {guiding && nav.phase === "navigating" && (
+          <NavigationHud
+            route={nav.session.route}
+            progress={navSession.progress}
+            camera={nav.camera}
+            degraded={navSession.progress.freshness !== "fresh"}
+            onRecenter={recenterNavigation}
+            onOverview={showOverview}
+            onEnd={cancelNavigation}
+          />
+        )}
+
+        {nav.phase === "navigationStarting" && (
+          <div className="pointer-events-auto">
+            <NavigationAcquiring onEnd={cancelNavigation} />
+          </div>
+        )}
+
+        <div
+          className="pointer-events-auto flex flex-col gap-3"
+          style={guiding ? { display: "none" } : undefined}
+        >
           <div className="flex items-start gap-2.5">
             <VehicleChip
               vehicle={activeVehicle}
@@ -471,10 +618,15 @@ export function CommandCenter() {
           <SimulationBadge notes={simulationNotes} />
         </div>
 
-        <div className="flex-1" />
+        {/* The HUD supplies its own spacer while guiding; a second one here
+            would split the space and strand the controls mid-screen. */}
+        {!guiding && <div className="flex-1" />}
 
         {/* ---------- Bottom stack ---------- */}
-        <div className="pointer-events-auto flex flex-col gap-4">
+        <div
+          className="pointer-events-auto flex flex-col gap-4"
+          style={guiding ? { display: "none" } : undefined}
+        >
           <div className="flex items-end gap-3">
             <TelemetryBlock
               speed={speedMph}
@@ -501,6 +653,12 @@ export function CommandCenter() {
               now={previewNow}
               drawnRouteId={drawn.id}
               drawnLayerCount={drawn.layers}
+              progress={guiding ? navSession.progress : null}
+              wakeLock={navSession.wakeLock}
+              samples={{
+                accepted: navSession.acceptedSamples,
+                rejected: navSession.rejectedSamples,
+              }}
             />
           )}
 

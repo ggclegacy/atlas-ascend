@@ -1,5 +1,6 @@
 import type { Destination } from "@/destinations/types";
 import type { AtlasRoute, RouteFailure } from "@/routing/types";
+import type { NavigationCameraMode } from "./camera";
 
 /**
  * THE NAVIGATION STATE MACHINE.
@@ -17,10 +18,13 @@ import type { AtlasRoute, RouteFailure } from "@/routing/types";
  *    it is waiting for, so a stale route can never overwrite a newer one. This
  *    is handled here, once, rather than by each caller remembering to check.
  *
- * 2. **Camera mode is deliberately NOT in this union.** Whether the map is
- *    following, exploring, or in overview is orthogonal to which navigation
- *    phase is active — folding it in would multiply the states without adding
- *    information, and the combinations would mostly be meaningless.
+ * 2. **Camera mode lives inside `navigating`, and route progress does not.**
+ *    Camera mode is a small set of mutually exclusive user intents that only
+ *    exist while guiding, so it belongs in the state it is scoped to — as a
+ *    member, not as flags, since "exploring and overview" means nothing.
+ *    Progress is the opposite: engine output arriving at roughly 1Hz, held
+ *    alongside rather than inside, because folding a continuously-changing
+ *    value into the phase would make every GPS fix a state transition.
  */
 
 /** Why routing could not produce a preview. Includes the pre-request cases. */
@@ -67,11 +71,32 @@ export type NavigationState =
       readonly failure: NavigationFailure;
     }
   /**
-   * The driver has committed. Active guidance is NOT implemented yet, and the
-   * UI must say so rather than imply otherwise — this state exists so the
-   * boundary is real and Sub-phase 4 has somewhere to attach.
+   * Committed, but not yet located on the route. Held until the engine
+   * accepts a first fix, because claiming to guide someone before knowing
+   * where they are is the same class of lie as a fabricated position.
    */
-  | { readonly phase: "navigationStarting"; readonly session: NavigationSession };
+  | { readonly phase: "navigationStarting"; readonly session: NavigationSession }
+  /**
+   * Actively guiding.
+   *
+   * `camera` is a member rather than a set of booleans: following, exploring,
+   * recentering and overview are mutually exclusive, and representing them as
+   * flags allows combinations that mean nothing. Route progress deliberately
+   * lives outside this union — it is engine output arriving at ~1Hz, and
+   * folding a continuously-changing value into the phase would make every
+   * transition a progress update.
+   */
+  | {
+      readonly phase: "navigating";
+      readonly session: NavigationSession;
+      readonly camera: NavigationCameraMode;
+    }
+  /** Guidance could not continue. The route and session are preserved. */
+  | {
+      readonly phase: "navigationFailed";
+      readonly session: NavigationSession;
+      readonly failure: NavigationFailure;
+    };
 
 export type NavigationEvent =
   | { readonly type: "SEARCH_OPENED" }
@@ -94,6 +119,15 @@ export type NavigationEvent =
       readonly at: number;
       readonly origin: { readonly latitude: number; readonly longitude: number };
     }
+  /** The engine has accepted a first fix: guidance can genuinely begin. */
+  | { readonly type: "NAVIGATION_READY" }
+  /** The driver panned or zoomed the map. */
+  | { readonly type: "MAP_EXPLORED" }
+  | { readonly type: "RECENTER" }
+  /** The recentre animation finished. */
+  | { readonly type: "RECENTER_SETTLED" }
+  | { readonly type: "SHOW_OVERVIEW" }
+  | { readonly type: "NAVIGATION_FAILED"; readonly failure: NavigationFailure }
   | { readonly type: "CANCEL" };
 
 export const INITIAL_NAVIGATION_STATE: NavigationState = { phase: "idle" };
@@ -193,6 +227,39 @@ export function navigationReducer(
       };
     }
 
+    case "NAVIGATION_READY":
+      return state.phase === "navigationStarting"
+        ? { phase: "navigating", session: state.session, camera: "following" }
+        : state;
+
+    case "MAP_EXPLORED":
+      // A deliberate gesture always wins. Snapping the camera back mid-pan is
+      // the single most infuriating thing a navigation app can do.
+      if (state.phase !== "navigating") return state;
+      return state.camera === "exploring" ? state : { ...state, camera: "exploring" };
+
+    case "RECENTER":
+      if (state.phase !== "navigating") return state;
+      return state.camera === "following" ? state : { ...state, camera: "recentering" };
+
+    case "RECENTER_SETTLED":
+      if (state.phase !== "navigating") return state;
+      return state.camera === "recentering" ? { ...state, camera: "following" } : state;
+
+    case "SHOW_OVERVIEW":
+      if (state.phase !== "navigating") return state;
+      return state.camera === "overview" ? state : { ...state, camera: "overview" };
+
+    case "NAVIGATION_FAILED":
+      if (state.phase !== "navigating" && state.phase !== "navigationStarting") {
+        return state;
+      }
+      return {
+        phase: "navigationFailed",
+        session: state.session,
+        failure: event.failure,
+      };
+
     case "CANCEL":
       return { phase: "idle" };
   }
@@ -211,6 +278,8 @@ export function destinationOf(state: NavigationState): Destination | null {
     case "routeFailed":
       return state.destination;
     case "navigationStarting":
+    case "navigating":
+    case "navigationFailed":
       return state.session.destination;
     default:
       return null;
@@ -222,19 +291,50 @@ export function selectedRouteOf(state: NavigationState): AtlasRoute | null {
   if (state.phase === "routePreview") {
     return state.routes.find((r) => r.id === state.selectedId) ?? null;
   }
-  if (state.phase === "navigationStarting") return state.session.route;
+  if (
+    state.phase === "navigationStarting" ||
+    state.phase === "navigating" ||
+    state.phase === "navigationFailed"
+  ) {
+    return state.session.route;
+  }
   return null;
 }
 
 export function routesOf(state: NavigationState): readonly AtlasRoute[] {
   if (state.phase === "routePreview") return state.routes;
-  if (state.phase === "navigationStarting") return state.session.offered;
+  if (
+    state.phase === "navigationStarting" ||
+    state.phase === "navigating" ||
+    state.phase === "navigationFailed"
+  ) {
+    return state.session.offered;
+  }
   return [];
 }
 
 /** Whether the map should currently be drawing a route at all. */
 export function showsRoute(state: NavigationState): boolean {
-  return state.phase === "routePreview" || state.phase === "navigationStarting";
+  return (
+    state.phase === "routePreview" ||
+    state.phase === "navigationStarting" ||
+    state.phase === "navigating" ||
+    state.phase === "navigationFailed"
+  );
+}
+
+/** True once guidance is live — the point at which the UI simplifies. */
+export function isGuiding(state: NavigationState): boolean {
+  return state.phase === "navigating" || state.phase === "navigationStarting";
+}
+
+/** The active session, or `null` outside a drive. */
+export function sessionOf(state: NavigationState): NavigationSession | null {
+  return state.phase === "navigationStarting" ||
+    state.phase === "navigating" ||
+    state.phase === "navigationFailed"
+    ? state.session
+    : null;
 }
 
 /** Whether a route request is in flight. Drives the loading state. */
