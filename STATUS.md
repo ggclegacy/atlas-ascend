@@ -13,7 +13,7 @@ ledger. **Update it in the same commit as the code it describes.**
 
 **Phase:** 2 — web application foundation, prepared for a clean Vercel import
 **Last updated:** 2026-08-17 (fresh-deployment readiness)
-**Deployable to Vercel:** Yes, zero-config. Requires exactly one environment variable (`NEXT_PUBLIC_MAPBOX_TOKEN`), and deploys successfully without even that — showing an explicit MAP SERVICE NOT CONFIGURED state.
+**Deployable to Vercel:** Yes, zero-config. The application reads exactly one environment variable (`NEXT_PUBLIC_MAPBOX_TOKEN`), and deploys successfully without even that — showing an explicit MAP SERVICE NOT CONFIGURED state. Three further credentials are provisioned for later phases and are read by nothing yet.
 
 ---
 
@@ -40,13 +40,20 @@ Everything a clean Vercel import needs, and nothing else.
 | Root directory | `./` |
 | Build / install / output | Vercel defaults — **no `vercel.json`, none needed** |
 | Node | `engines.node >= 20.9.0` — permissive, so Vercel picks its own default |
-| Environment variables | **exactly one:** `NEXT_PUBLIC_MAPBOX_TOKEN` |
+| Environment variables | **one that the app reads:** `NEXT_PUBLIC_MAPBOX_TOKEN`. `OPENAI_API_KEY`, `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` are provisioned for later phases, server-only, and read by no code today |
 
 **One variable, one accessor.** `getPublicMapboxToken()` in `src/lib/env.ts` is
 the only place any Mapbox credential is resolved — the map, the diagnostics,
 and the `/api/search` geocoder all route through it. There is no
 `MAPBOX_TOKEN`, no fallback, no hardcoded token, and no second reader whose
 trim/empty rules could drift from the first.
+
+**Server-only credentials stay server-only.** `OPENAI_API_KEY`,
+`ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` carry no `NEXT_PUBLIC_` prefix,
+so Next.js will not inline them into the client bundle. When they are used it
+must be from a route handler, following the `/api/search` pattern. A guard test
+fails the suite if a secret-looking name is ever given a public prefix or read
+outside `src/app/api/`.
 
 **`NEXT_PUBLIC_` means build time.** The value is inlined into the client
 bundle when the project is compiled, not read when it runs. Changing it

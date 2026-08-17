@@ -130,10 +130,17 @@ enforced structurally rather than by discipline:
 Build command, install command, and output directory are all Vercel defaults —
 leave them untouched. There is no `vercel.json`, and none is needed.
 
-**That one variable is the entire configuration.** It serves both the browser
-map and server-side geocoding. If it is absent the app still deploys and runs,
-showing an explicit **MAP SERVICE NOT CONFIGURED** state rather than a blank
-canvas.
+**That one variable is all the application reads.** It serves the browser map,
+server-side geocoding, and routing. If it is absent the app still deploys and
+runs, showing an explicit **MAP SERVICE NOT CONFIGURED** state rather than a
+blank canvas.
+
+`OPENAI_API_KEY`, `ELEVENLABS_API_KEY`, and `ELEVENLABS_VOICE_ID` may also be
+present. They are provisioned for the Atlas intelligence and voice layers and
+**no code in this repository reads them yet** — the app builds and behaves
+identically with or without them. All three are server-only: none carries a
+`NEXT_PUBLIC_` prefix, so none reaches the browser, and none ever should. See
+`.env.example`.
 
 > The token is inlined at **build** time, not read at runtime. Adding or
 > changing it requires a rebuild — redeploying the same artifact will not pick
